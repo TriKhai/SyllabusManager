@@ -42,7 +42,7 @@ $blocks = $pdo->query(
         </p>
 
         <div class="section">
-            <form method="post" class="row-input">
+            <form method="psost" class="row-input">
                 <select name="major_id" required>
                     <option value="">Chọn ngành</option>
                     <?php foreach ($majors as $m): ?>
@@ -72,7 +72,7 @@ $blocks = $pdo->query(
                         <th>ID</th>
                         <th>Ngành</th>
                         <th>Tên</th>
-                        <th>Cha</th>
+                        <th>Thuộc khối</th>
                         <th></th>
                     </tr>
                     <?php foreach ($blocks as $b): ?>

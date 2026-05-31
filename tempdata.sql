@@ -256,31 +256,42 @@ CREATE TABLE `books_catalog` (
   `identifier` VARCHAR(100) NULL COMMENT 'Số định danh cá biệt / ISBN'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+CREATE TABLE IF NOT EXISTS `faculties_list` (
+  `id` INT AUTO_INCREMENT PRIMARY KEY,
+  `name` VARCHAR(255) NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ---------------------------------------------------------------------
 -- BƯỚC 3: CHÈN DỮ LIỆU KIỂM THỬ ĐỒNG BỘ (5 MẪU ĐỀ CƯƠNG CHI TIẾT)
 -- ---------------------------------------------------------------------
-
 -- Danh mục Ngành
 INSERT INTO `majors` (`id`, `name`) VALUES 
 (1, 'Y khoa'), 
 (2, 'Dược học'), 
 (3, 'Điều dưỡng');
 
--- Danh mục Khối kiến thức
+-- Danh mục Khối kiến thức (Đã hợp nhất phân cấp Cha - Con, không lo trùng ID)
 INSERT INTO `knowledge_blocks` (`id`, `major_id`, `name`, `parent_id`) VALUES 
-(1, 1, 'Khối kiến thức cơ sở ngành (Y khoa)', NULL),
-(2, 2, 'Khối kiến thức chuyên ngành (Dược)', NULL),
-(3, 3, 'Khối kiến thức cơ sở ngành (Điều dưỡng)', NULL),
-(4, 1, 'Khối kiến thức đại cương', NULL);
+-- Các khối gốc (parent_id = NULL)
+(1, 1, 'Khối kiến thức giáo dục đại cương', NULL),
+(2, 1, 'Khối kiến thức giáo dục chuyên nghiệp', NULL),
+(3, 2, 'Khối kiến thức cơ sở ngành CNTT', NULL),
+(9, 3, 'Khối kiến thức cơ sở ngành (Điều dưỡng)', NULL), -- Khối nền cho ngành Điều dưỡng
 
--- Khung chương trình (Courses)
+-- Các khối con (parent_id trỏ về các khối lớn ở trên)
+(4, 1, 'Lý luận chính trị & Pháp luật', 1),
+(5, 1, 'Khoa học tự nhiên & Ngoại ngữ', 1),
+(6, 1, 'Khối kiến thức cơ sở ngành Y', 2),
+(7, 1, 'Khối kiến thức chuyên ngành Y khoa', 2),
+(8, 2, 'Lập trình & Phát triển ứng dụng', 3);
+
+-- Khung chương trình đào tạo gốc (Courses)
 INSERT INTO `courses` (`id`, `major_id`, `block_id`, `code`, `name`, `total_hours`, `theory_hours`, `practice_hours`, `sort_order`) VALUES 
-(1, 1, 1, 'HP001', 'Giải phẫu học 1', 45, 30, 15, 1),
-(2, 2, 2, 'HP002', 'Dược lý học lâm sàng', 60, 45, 15, 2),
-(3, 3, 3, 'HP003', 'Điều dưỡng cơ bản 1', 45, 20, 25, 3),
-(4, 1, 1, 'HP004', 'Sinh lý học đại cương', 45, 35, 10, 4),
-(5, 1, 4, 'HP005', 'Tin học ứng dụng trong Y Dược', 30, 15, 15, 5);
+(1, 1, 6, 'HP001', 'Giải phẫu học 1', 45, 30, 15, 1),
+(2, 2, 8, 'HP002', 'Dược lý học lâm sàng', 60, 45, 15, 2),
+(3, 3, 9, 'HP003', 'Điều dưỡng cơ bản 1', 45, 20, 25, 3),
+(4, 1, 6, 'HP004', 'Sinh lý học đại cương', 45, 35, 10, 4),
+(5, 1, 5, 'HP005', 'Tin học ứng dụng trong Y Dược', 30, 15, 15, 5);
 
 -- Danh mục Cơ sở vật chất
 INSERT INTO `facilities` (`id`, `name`) VALUES 
@@ -297,17 +308,16 @@ INSERT INTO `assessment_forms` (`id`, `name`) VALUES
 (4, 'Thi viết tự luận'),
 (5, 'Báo cáo bài tập lớn (Tiểu luận)');
 
-CREATE TABLE IF NOT EXISTS `faculties_list` (
-  `id` INT AUTO_INCREMENT PRIMARY KEY,
-  `name` VARCHAR(255) NOT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
--- Chèn dữ liệu mẫu cho các khoa
+-- Chèn dữ liệu mẫu cho danh sách các khoa phụ trách
 INSERT INTO `faculties_list` (`name`) VALUES 
 ('Khoa Y'),
 ('Khoa Dược'),
-('Khoa Điều dưỡng');
+('Khoa Điều dưỡng'),
+('Khoa Khoa học cơ bản');
+
+
 -- ---------------------------------------------------------------------
--- PHẦN THÔNG TIN CHUNG ĐỀ CƯƠNG CHI TIẾT (modules)
+-- BƯỚC 2: PHẦN THÔNG TIN CHI TIẾT ĐỀ CƯƠNG (modules)
 -- ---------------------------------------------------------------------
 
 -- Đề cương số 1: Giải phẫu học 1
@@ -332,7 +342,7 @@ VALUES (5, 5, 'TH003', 'Tin học ứng dụng trong Y Dược', 'Applied Inform
 
 
 -- ---------------------------------------------------------------------
--- PHẦN MỐI QUAN HỆ GIỮA CÁC HỌC PHẦN (module_relationships)
+-- BƯỚC 3: MỐI QUAN HỆ GIỮA CÁC HỌC PHẦN
 -- ---------------------------------------------------------------------
 INSERT INTO `module_relationships` (`module_id`, `related_module_id`, `relation_type`) VALUES 
 (2, 4, 'Học trước'),
@@ -340,7 +350,7 @@ INSERT INTO `module_relationships` (`module_id`, `related_module_id`, `relation_
 
 
 -- ---------------------------------------------------------------------
--- PHẦN CHUẨN ĐẦU RA HỌC PHẦN (clos)
+-- BƯỚC 4: CHUẨN ĐẦU RA HỌC PHẦN (clos)
 -- ---------------------------------------------------------------------
 
 -- CLOs cho Giải phẫu học 1 (Module 1)
@@ -352,30 +362,30 @@ INSERT INTO `clos` (`id`, `module_id`, `code`, `domain`, `bloom_level`, `descrip
 -- CLOs cho Dược lý lâm sàng (Module 2)
 INSERT INTO `clos` (`id`, `module_id`, `code`, `domain`, `bloom_level`, `description`) VALUES
 (21, 2, 'CLO1', 'Kiến thức', '4. Analyze', 'Phân tích được cơ chế tác dụng và chỉ định phù hợp của các nhóm thuốc điều trị.'),
-(22, 2, 'Kỹ năng', '3. Precision', 'Tính toán chính xác liều lượng thuốc hiệu chỉnh trên bệnh nhân suy gan, suy thận.'),
-(23, 2, 'Năng lực tự chủ', '3. Valuing', 'Thể hiện sự cẩn trọng, nghiêm túc khi duyệt đơn thuốc nhằm hạn chế tương tác có hại.');
+(22, 2, 'CLO2', 'Kỹ năng', '3. Precision', 'Tính toán chính xác liều lượng thuốc hiệu chỉnh trên bệnh nhân suy gan, suy thận.'),
+(23, 2, 'CLO3', 'Thái độ', '3. Valuing', 'Thể hiện sự cẩn trọng, nghiêm túc khi duyệt đơn thuốc nhằm hạn chế tương tác có hại.');
 
 -- CLOs cho Điều dưỡng cơ bản 1 (Module 3)
 INSERT INTO `clos` (`id`, `module_id`, `code`, `domain`, `bloom_level`, `description`) VALUES
 (31, 3, 'CLO1', 'Kỹ năng', '3. Precision', 'Thực hiện kỹ thuật tiêm dưới da, tiêm tĩnh mạch đúng quy trình kỹ thuật vô khuẩn.'),
-(32, 3, 'Kỹ năng', '2. Manipulation', 'Đo và ghi nhận chính xác 4 dấu hiệu sinh tồn của người bệnh vào bảng theo dõi.'),
-(33, 3, 'Năng lực tự chủ', '5. Characterizing', 'Thể hiện sự đồng cảm, giao tiếp lịch sự, tôn trọng quyền riêng tư của bệnh nhân.');
+(32, 3, 'CLO2', 'Kỹ năng', '2. Manipulation', 'Đo và ghi nhận chính xác 4 dấu hiệu sinh tồn của người bệnh vào bảng theo dõi.'),
+(33, 3, 'CLO3', 'Thái độ', '5. Characterizing', 'Thể hiện sự đồng cảm, giao tiếp lịch sự, tôn trọng quyền riêng tư của bệnh nhân.');
 
 -- CLOs cho Sinh lý học đại cương (Module 4)
 INSERT INTO `clos` (`id`, `module_id`, `code`, `domain`, `bloom_level`, `description`) VALUES
 (41, 4, 'CLO1', 'Kiến thức', '2. Understand', 'Giải thích được cơ chế điều hòa huyết áp và hằng định nội môi của cơ thể.'),
-(42, 4, 'Kiến thức', '3. Apply', 'Biện luận được sự thay đổi của các chỉ số sinh lý trong trạng thái lao động đặc biệt.'),
-(43, 4, 'Kỹ năng', '1. Imitation', 'Thực hiện đúng kỹ thuật ghi điện tâm đồ cơ bản trên người tình nguyện.');
+(42, 4, 'CLO2', 'Kiến thức', '3. Apply', 'Biện luận được sự thay đổi của các chỉ số sinh lý trong trạng thái lao động đặc biệt.'),
+(43, 4, 'CLO3', 'Kỹ năng', '1. Imitation', 'Thực hiện đúng kỹ thuật ghi điện tâm đồ cơ bản trên người tình nguyện.');
 
 -- CLOs cho Tin học ứng dụng (Module 5)
 INSERT INTO `clos` (`id`, `module_id`, `code`, `domain`, `bloom_level`, `description`) VALUES
-(51, 5, 'CLO1', 'Kỹ năng', '2. Manipulation', 'Sử dụng thành thạo phần mềm chuyên dụng để thống kê mô tả tập mẫu dữ liệu lâm sàng.'),
-(52, 5, 'Kỹ năng', '4. Articulation', 'Xây dựng được câu lệnh tìm kiếm nâng cao nâng cao để truy xuất tài liệu trên PubMed.'),
-(53, 5, 'Kiến thức', '2. Understand', 'Trình bày được các quy định cốt lõi về bảo mật thông tin dữ liệu bệnh án điện tử.');
+(51, 5, 'CLO1', 'Kiến thức', '3. Apply', 'Sử dụng thành thạo các hàm nâng cao và công cụ phân tích dữ liệu trong Excel.'),
+(52, 5, 'CLO2', 'Kỹ năng', '3. Precision', 'Thiết kế và chuẩn hóa được hệ thống bảng biểu báo cáo số liệu thống kê doanh nghiệp.'),
+(53, 5, 'CLO3', 'Thái độ', '3. Valuing', 'Chủ động bảo mật dữ liệu và tuân thủ các nguyên tắc an toàn thông tin số.');
 
 
 -- ---------------------------------------------------------------------
--- PHẦN PHƯƠNG PHÁP KIỂM TRA LƯỢNG GIÁ (assessments & assessment_clos)
+-- BƯỚC 5: PHƯƠNG PHÁP KIỂM TRA LƯỢNG GIÁ (assessments & ac)
 -- ---------------------------------------------------------------------
 INSERT INTO `assessments` (`id`, `module_id`, `type`, `component`, `form`, `tool`, `weight`, `plo_pi`) VALUES 
 (1, 1, 'Đánh giá thường xuyên', 'Chuyên cần', 'Điểm danh lớp học', 'Sổ theo dõi lên lớp', 10.00, 'PLO1'),
@@ -388,7 +398,7 @@ INSERT INTO `assessment_clos` (`assessment_id`, `clo_id`) VALUES
 
 
 -- ---------------------------------------------------------------------
--- PHẦN HOẠT ĐỘNG TỰ HỌC (self_study_activities & self_study_clos)
+-- BƯỚC 6: HOẠT ĐỘNG TỰ HỌC (self_study_activities)
 -- ---------------------------------------------------------------------
 INSERT INTO `self_study_activities` (`id`, `module_id`, `activity_name`, `duration_hours`, `method`, `assessment_method`, `evidence`) VALUES 
 (1, 1, 'Nghiên cứu Hệ xương và Hệ cơ qua mô hình ảo', 30, 'Đọc giáo trình kết hợp tập atlas giải phẫu', 'Kiểm tra vấn đáp đầu giờ', 'Sổ ghi chép cá nhân'),
@@ -399,7 +409,7 @@ INSERT INTO `self_study_clos` (`self_study_activity_id`, `clo_id`) VALUES
 
 
 -- ---------------------------------------------------------------------
--- PHẦN TIẾN ĐỘ GIẢNG DẠY LÝ THUYẾT (theory_topics & theory_topic_clos)
+-- BƯỚC 7: TIẾN ĐỘ GIẢNG DẠY LÝ THUYẾT (theory_topics)
 -- ---------------------------------------------------------------------
 INSERT INTO `theory_topics` (`id`, `module_id`, `chapter`, `title`, `method`, `class_hours`, `self_study_hours`, `textbook_info`) VALUES 
 (1, 1, 'Chương I', 'Đại cương Giải phẫu người và Hệ xương', 'Thuyết trình trực quan', 4, 12, 'Giáo trình Giải phẫu người - Chương 1'),
@@ -411,7 +421,7 @@ INSERT INTO `theory_topic_clos` (`theory_topic_id`, `clo_id`) VALUES
 
 
 -- ---------------------------------------------------------------------
--- PHẦN TIẾN ĐỘ GIẢNG DẠY THỰC HÀNH (practical_topics & practical_topic_clos)
+-- BƯỚC 8: TIẾN ĐỘ GIẢNG DẠY THỰC HÀNH (practical_topics)
 -- ---------------------------------------------------------------------
 INSERT INTO `practical_topics` (`id`, `module_id`, `topic`, `content`, `method`, `lab_hours`, `facility_id`) VALUES 
 (1, 1, 'Bài thực hành 1', 'Định danh hệ thống xương đầu mặt và xương thân mình', 'Quan sát và thực hành nhóm', 5, 1),
@@ -422,7 +432,7 @@ INSERT INTO `practical_topic_clos` (`practical_topic_id`, `clo_id`) VALUES
 
 
 -- ---------------------------------------------------------------------
--- PHẦN TIẾN ĐỘ GIẢNG DẠY TÍCH HỢP (combined_topics & combined_topic_clos)
+-- BƯỚC 9: TIẾN ĐỘ GIẢNG DẠY TÍCH HỢP (combined_topics)
 -- ---------------------------------------------------------------------
 INSERT INTO `combined_topics` (`id`, `module_id`, `sort_order`, `content`, `method`, `theory_hours`, `practical_hours`, `self_study_hours`, `facility_id`) VALUES 
 (1, 5, 1, 'Khai thác tài liệu y học nâng cao trên PubMed', 'Học kết hợp lý thuyết và thực hành máy', 3, 3, 10, 3),
@@ -433,7 +443,7 @@ INSERT INTO `combined_topic_clos` (`combined_topic_id`, `clo_id`) VALUES
 
 
 -- ---------------------------------------------------------------------
--- PHẦN TÀI LIỆU DẠY HỌC & CATALOGUE (resources & books_catalog)
+-- BƯỚC 10: TÀI LIỆU DẠY HỌC & CATALOGUE (resources)
 -- ---------------------------------------------------------------------
 INSERT INTO `resources` (`id`, `module_id`, `resource_type`, `sort_order`, `title`, `editor`, `publisher`, `year`, `identifier`) VALUES 
 (1, 1, 'Tài liệu giảng dạy', 1, 'Giáo trình Giải phẫu học Tập 1', 'PGS.TS. Nguyễn Văn A', 'NXB Y học', '2023', 'Mã số GP2023'),
@@ -445,5 +455,5 @@ INSERT INTO `books_catalog` (`id`, `title`, `editor`, `publisher`, `year`, `iden
 (2, 'Atlas Giải phẫu người (Frank H. Netter)', 'Khoa dịch thuật', 'NXB Y học', '2021', '978-604-66-5012-1'),
 (3, 'Dược lý học lâm sàng đại cương', 'GS.TS. Trần Thị B', 'NXB Giáo dục', '2024', '978-604-01-3445-2');
 
--- Bật lại kiểm tra khóa ngoại để bảo vệ tính toàn vẹn dữ liệu hệ thống
+-- Kích hoạt lại việc kiểm tra khóa ngoại sau khi nạp xong dữ liệu an toàn
 SET FOREIGN_KEY_CHECKS = 1;
