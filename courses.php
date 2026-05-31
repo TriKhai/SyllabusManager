@@ -16,24 +16,38 @@ $error_msg = '';
 try {
     if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if (isset($_POST['add'])) {
-            $stmt = $pdo->prepare(
-                'INSERT INTO courses (major_id, block_id, sort_order, code, name, total_hours, theory_hours, practice_hours) ' .
-                'VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
-            );
-            $blk = !empty($_POST['block_id']) ? $_POST['block_id'] : null;
-            
-            $sort_order = !empty($_POST['sort_order']) ? (int)$_POST['sort_order'] : 0;
-            $total_hours = !empty($_POST['total_hours']) ? (int)$_POST['total_hours'] : 0;
-            $theory_hours = !empty($_POST['theory_hours']) ? (int)$_POST['theory_hours'] : 0;
-            $practice_hours = !empty($_POST['practice_hours']) ? (int)$_POST['practice_hours'] : 0;
+            // 1. Kiểm tra và lọc sạch dữ liệu đầu vào bắt buộc
+            $major_id = !empty($_POST['major_id']) ? (int)$_POST['major_id'] : null;
+            $blk = !empty($_POST['block_id']) ? (int)$_POST['block_id'] : null;
+            $code = trim($_POST['code'] ?? '');
+            $name = trim($_POST['name'] ?? '');
 
-            $stmt->execute([
-                $_POST['major_id'], $blk, $sort_order, $_POST['code'],
-                $_POST['name'], $total_hours, $theory_hours, $practice_hours
-            ]);
-            header('Location: courses.php');
-            exit;
+            // Nếu thiếu một trong ba trường cốt lõi thì chặn lại và báo lỗi luôn
+            if (empty($major_id) || empty($code) || empty($name)) {
+                $error_msg = "Không thể thêm học phần! Vui lòng chọn Ngành học, nhập Mã học phần và Tên học phần.";
+            } else {
+                // 2. Chuyển đổi định dạng số cho các trường thời gian học
+                $sort_order = !empty($_POST['sort_order']) ? (int)$_POST['sort_order'] : 0;
+                $total_hours = !empty($_POST['total_hours']) ? (int)$_POST['total_hours'] : 0;
+                $theory_hours = !empty($_POST['theory_hours']) ? (int)$_POST['theory_hours'] : 0;
+                $practice_hours = !empty($_POST['practice_hours']) ? (int)$_POST['practice_hours'] : 0;
+
+                // 3. Thực thi câu lệnh chuẩn bị an toàn chống SQL Injection
+                $stmt = $pdo->prepare(
+                    'INSERT INTO courses (major_id, block_id, sort_order, code, name, total_hours, theory_hours, practice_hours) ' .
+                    'VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
+                );
+
+                $stmt->execute([
+                    $major_id, $blk, $sort_order, $code,
+                    $name, $total_hours, $theory_hours, $practice_hours
+                ]);
+
+                header('Location: courses.php');
+                exit;
+            }
         }
+
         if (isset($_POST['delete'])) {
             $stmt = $pdo->prepare('DELETE FROM courses WHERE id = ?');
             $stmt->execute([$_POST['delete']]);
@@ -42,6 +56,7 @@ try {
         }
     }
 
+    // Nạp lại danh sách dữ liệu hiển thị lên giao diện Table công khai
     $majors = $pdo->query('SELECT * FROM majors ORDER BY name')->fetchAll(PDO::FETCH_ASSOC);
     $blocks = $pdo->query('SELECT * FROM knowledge_blocks ORDER BY major_id')->fetchAll(PDO::FETCH_ASSOC);
     $courses = $pdo->query(
@@ -52,7 +67,8 @@ try {
     )->fetchAll(PDO::FETCH_ASSOC);
 
 } catch (PDOException $e) {
-    $error_msg = "Lỗi Database (Hãy chắc chắn đã chạy lệnh SQL nâng cấp bảng): " . $e->getMessage();
+    // Nếu có lỗi phát sinh từ hệ thống CSDL (như sai tên cột, sai bảng hoặc dính khóa ngoại) thì in thẳng ra giao diện
+    $error_msg = "Lỗi Database phát sinh: " . $e->getMessage();
 }
 ?>
 <!doctype html>
@@ -80,8 +96,8 @@ try {
     <div class="container">
         <h1>Học phần</h1>
         <p>
-            <a href="majors.php">Ngành</a> | 
-            <a href="blocks.php">Khối kiến thức</a> | 
+            <a href="majors.php">Ngành</a> |
+            <a href="blocks.php">Khối kiến thức</a> |
             <a href="index.php">Đề cương chi tiết học phần</a>
         </p>
 
@@ -97,11 +113,11 @@ try {
                         <option value="<?= h($m['id']) ?>"><?= h($m['name']) ?></option>
                     <?php endforeach; ?>
                 </select>
-                
+
                 <select name="block_id" id="block_select">
                     <option value="">(Chọn khối)</option>
                 </select>
-                
+
                 <input class="small" name="sort_order" placeholder="STT">
                 <input name="code" placeholder="Mã" required>
                 <input name="name" placeholder="Tên" required>
@@ -152,6 +168,8 @@ try {
         </div>
     </div>
 
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
     <script>
         const allBlocks = <?php echo json_encode($blocks); ?>;
         function filterBlocks(selectedMajorId) {
@@ -179,7 +197,7 @@ try {
             allowClear: true,
             width: '100%'
           });
-          
+
           $('#block_select').select2({
             placeholder: '(Chọn khối)',
             allowClear: true,
@@ -187,7 +205,5 @@ try {
           });
         });
     </script>
-    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>   
 </body>
 </html>

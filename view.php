@@ -25,7 +25,7 @@ $clos = $stmtClo->fetchAll(PDO::FETCH_ASSOC);
 
 // 3. Lấy dữ liệu Phương thức đánh giá & gom nhóm chuỗi CLO liên quan
 $stmtAssess = $pdo->prepare("
-    SELECT a.*, GROUP_CONCAT(c.code SEPARATOR ', ') as clos_codes 
+    SELECT a.*, GROUP_CONCAT(c.code SEPARATOR ', ') as clos_codes
     FROM assessments a
     LEFT JOIN assessment_clos ac ON a.id = ac.assessment_id
     LEFT JOIN clos c ON ac.clo_id = c.id
@@ -37,19 +37,20 @@ $assessments = $stmtAssess->fetchAll(PDO::FETCH_ASSOC);
 
 // 4. Lấy dữ liệu Hoạt động tự học
 $stmtSelfStudy = $pdo->prepare("
-    SELECT s.*, GROUP_CONCAT(c.code SEPARATOR ', ') as clos_codes 
+    SELECT s.*, GROUP_CONCAT(c.code SEPARATOR ', ') as clos_codes
     FROM self_study_activities s
     LEFT JOIN self_study_clos sc ON s.id = sc.self_study_activity_id
     LEFT JOIN clos c ON sc.clo_id = c.id
     WHERE s.module_id = ?
-    GROUP BY s.id ORDER BY s.id ASC
+    GROUP BY s.id
+    ORDER BY s.id ASC
 ");
 $stmtSelfStudy->execute([$id]);
-$selfStudies = $stmtSelfStudy->fetchAll(PDO::FETCH_ASSOC);
+$selfStudyActivities = $stmtSelfStudy->fetchAll(PDO::FETCH_ASSOC);
 
 // 5. Lấy tiến độ Lý thuyết
 $stmtTheory = $pdo->prepare("
-    SELECT t.*, GROUP_CONCAT(c.code SEPARATOR ', ') as clos_codes 
+    SELECT t.*, GROUP_CONCAT(c.code SEPARATOR ', ') as clos_codes
     FROM theory_topics t
     LEFT JOIN theory_topic_clos tc ON t.id = tc.theory_topic_id
     LEFT JOIN clos c ON tc.clo_id = c.id
@@ -61,22 +62,25 @@ $theoryTopics = $stmtTheory->fetchAll(PDO::FETCH_ASSOC);
 
 // 6. Lấy tiến độ Thực hành
 $stmtPractical = $pdo->prepare("
-    SELECT p.*, GROUP_CONCAT(c.code SEPARATOR ', ') as clos_codes 
+    SELECT p.*, f.name as facility_name, GROUP_CONCAT(c.code SEPARATOR ', ') as clos_codes
     FROM practical_topics p
     LEFT JOIN practical_topic_clos pc ON p.id = pc.practical_topic_id
     LEFT JOIN clos c ON pc.clo_id = c.id
+    LEFT JOIN facilities f ON p.facility_id = f.id
     WHERE p.module_id = ?
-    GROUP BY p.id ORDER BY p.id ASC
+    GROUP BY p.id
+    ORDER BY p.id ASC
 ");
 $stmtPractical->execute([$id]);
 $practicalTopics = $stmtPractical->fetchAll(PDO::FETCH_ASSOC);
 
 // 7. Lấy tiến độ Tích hợp chung (Lý thuyết và Thực hành chung)
 $stmtCombined = $pdo->prepare("
-    SELECT cb.*, GROUP_CONCAT(c.code SEPARATOR ', ') as clos_codes 
+    SELECT cb.*, f.name as facility_name, GROUP_CONCAT(c.code SEPARATOR ', ') as clos_codes
     FROM combined_topics cb
     LEFT JOIN combined_topic_clos cbc ON cb.id = cbc.combined_topic_id
     LEFT JOIN clos c ON cbc.clo_id = c.id
+    LEFT JOIN facilities f ON cb.facility_id = f.id
     WHERE cb.module_id = ?
     GROUP BY cb.id ORDER BY cb.id ASC
 ");
@@ -117,20 +121,20 @@ $resources = $stmtRes->fetchAll(PDO::FETCH_ASSOC);
         <div class="col-md-6"><span class="info-label">Tên học phần:</span> <?= h($module['name_vn']) ?></div>
         <div class="col-md-6"><span class="info-label">Mã học phần:</span> <?= h($module['code']) ?></div>
         <div class="col-md-6"><span class="info-label">Tính chất học phần:</span> <?= h($module['type']) ?></div>
-        
+
         <div class="col-md-4"><span class="info-label">Số tín chỉ:</span> <?= h($module['credits']) ?> tín chỉ</div>
         <div class="col-md-4"><span class="info-label">Số tiết lý thuyết:</span> <?= h($module['theory_hours']) ?> tiết</div>
         <div class="col-md-4"><span class="info-label">Số tiết thực hành:</span> <?= h($module['practical_hours']) ?> tiết</div>
         <div class="col-md-4"><span class="info-label">Số giờ tự học:</span> <?= h($module['self_study_hours']) ?> tiết</div>
-        
+
         <div class="col-md-8"><span class="info-label">Đối tượng người học:</span> <?= h($module['target_programs']) ?></div>
         <div class="col-md-6"><span class="info-label">Học kỳ dự kiến:</span> <?= h($module['expected_semester']) ?></div>
         <div class="col-md-6"><span class="info-label">Năm học dự kiến:</span> <?= h($module['expected_year']) ?></div>
-        
+
         <div class="col-md-4"><span class="info-label">Học phần tiên quyết:</span> <?= h($module['prerequisite_modules'] ?? 'Không') ?></div>
         <div class="col-md-4"><span class="info-label">Học phần song hành:</span> <?= h($module['parallel_modules'] ?? 'Không') ?></div>
         <div class="col-md-4"><span class="info-label">Học phần học trước:</span> <?= h($module['previous_modules'] ?? 'Không') ?></div>
-        
+
         <div class="col-md-4"><span class="info-label">Bộ môn phụ trách:</span> <?= h($module['department_in_charge']) ?></div>
         <div class="col-md-4"><span class="info-label">Ban điều phối:</span> <?= h($module['coordinating_board']) ?></div>
         <div class="col-md-4"><span class="info-label">Khoa phụ trách:</span> <?= h($module['faculty_in_charge']) ?></div>
@@ -157,7 +161,7 @@ $resources = $stmtRes->fetchAll(PDO::FETCH_ASSOC);
             <?php if (!empty($clos)): foreach($clos as $c): ?>
                 <tr>
                     <td class="text-center">
-                        <?php 
+                        <?php
                         if (!empty($c['domain'])) {
                             // Tách chuỗi theo dấu phẩy và khoảng trắng
                             $domains_arr = preg_split('/,\s*/', $c['domain']);
@@ -166,9 +170,9 @@ $resources = $stmtRes->fetchAll(PDO::FETCH_ASSOC);
                         }
                         ?>
                     </td>
-                    
+
                     <td class="text-center">
-                        <?php 
+                        <?php
                         if (!empty($c['bloom_level'])) {
                             // Tách chuỗi theo dấu phẩy và khoảng trắng
                             $blooms_arr = preg_split('/,\s*/', $c['bloom_level']);
@@ -179,8 +183,8 @@ $resources = $stmtRes->fetchAll(PDO::FETCH_ASSOC);
                     </td>
                     <td class="text-center"><?= h($c['code']) ?></td>
                     <td><?= nl2br(h($c['description'])) ?></td>
-                    
-                    
+
+
                 </tr>
             <?php endforeach; else: ?>
                 <tr><td colspan="4" class="text-center text-muted">Chưa cấu hình dữ liệu CLO</td></tr>
@@ -192,61 +196,70 @@ $resources = $stmtRes->fetchAll(PDO::FETCH_ASSOC);
     <div class="sub-section-header"><div class="sub-section-title">4.1. Thang điểm lượng giá</div></div>
     <div class="p-3 bg-light border rounded mb-3"><?= h($module['grading_scale']) ?></div>
 
-    <div class="sub-section-header"><div class="sub-section-title">4.2. Phương pháp kiểm tra lượng giá</div></div>
-    <table class="table table-bordered align-middle">
-        <thead>
-            <tr>
-                <th>Thành phần đánh giá</th>
-                <th>Hình thức đánh giá</th>
-                <th>Công cụ đánh giá</th>
-                <th style="width: 12%;">Trọng số (%)</th>
-                <th>PLO/PI liên quan</th>
-                <th>CLOs đạt được</th>
-            </tr>
-        </thead>
-        <tbody>
-            <?php if (!empty($assessments)): foreach($assessments as $a): ?>
+    <div class="section">
+        <h4>4.2. Phương pháp kiểm tra lượng giá</h4>
+        <table class="table table-bordered align-middle">
+            <thead>
                 <tr>
-                    <td><?= h($a['component']) ?></td>
-                    <td><?= h($a['form']) ?></td>
-                    <td><?= h($a['tool']) ?></td>
-                    <td class="text-center fw-bold"><?= h($a['weight']) ?>%</td>
-                    <td class="text-center"><?= h($a['plo_pi']) ?></td>
-                    <td class="text-center text-success fw-bold"><?= h($a['clos_codes']) ?></td>
+                    <th style="width: 15%; text-align: center;">CLOs</th>
+                    <th style="width: 15%; text-align: center;">PLO/PI liên quan</th>
+                    <th style="width: 30%;">Hình thức đánh giá</th>
+                    <th style="width: 28%;">Công cụ đánh giá</th>
+                    <th style="width: 12%; text-align: center;">Trọng số (%)</th>
                 </tr>
-            <?php endforeach; else: ?>
-                <tr><td colspan="6" class="text-center text-muted">Chưa có phương pháp đánh giá nào</td></tr>
-            <?php endif; ?>
-        </tbody>
-    </table>
-
-    <div class="sub-section-header"><div class="sub-section-title">4.3. Lượng giá hoạt động tự học</div></div>
-    <table class="table table-bordered align-middle">
-        <thead>
-            <tr>
-                <th>Hoạt động tự học</th>
-                <th>Phương pháp tự học</th>
-                <th>Cách thức đánh giá</th>
-                <th>Minh chứng</th>
-                <th style="width: 12%;">Thời lượng (giờ)</th>
-                <th>CLOs liên quan</th>
-            </tr>
-        </thead>
-        <tbody>
-            <?php if (!empty($selfStudies)): foreach($s as $selfStudies): // Sửa biến lặp cho đồng nhất ?>
+            </thead>
+            <tbody>
+                <?php if (!empty($assessments)): ?>
+                    <?php foreach($assessments as $a): ?>
+                        <tr>
+                            <td class="text-center"><?= h($a['clos_codes'] ?: '---') ?></td>
+                            <td class="text-center fw-semibold"><?= h($a['plo_pi']) ?></td>
+                            <td><?= h($a['form']) ?></td>
+                            <td><?= h($a['tool']) ?></td>
+                            <td class="text-center"><?= h($a['weight']) ?>%</td>
+                        </tr>
+                    <?php endforeach; ?>
+                <?php else: ?>
+                    <tr>
+                        <td colspan="5" class="text-center text-muted py-3">Chưa có phương pháp đánh giá nào.</td>
+                    </tr>
+                <?php endif; ?>
+            </tbody>
+        </table>
+    </div>
+    <div class="section">
+        <h4>4.3. Lượng giá hoạt động tự học</h4>
+        <table class="table table-bordered align-middle">
+            <thead>
                 <tr>
-                    <td><?= h($s['activity_name']) ?></td>
-                    <td><?= h($s['method']) ?></td>
-                    <td><?= h($s['assessment_method']) ?></td>
-                    <td><?= h($s['evidence']) ?></td>
-                    <td class="text-center"><?= h($s['duration_hours']) ?> giờ</td>
-                    <td class="text-center text-success fw-bold"><?= h($s['clos_codes']) ?></td>
+                    <th style="width: 25%;">Hoạt động tự học</th>
+                    <th style="width: 15%;">Mục tiêu/Chuẩn đầu ra liên quan (CLOs)</th>
+                    <th style="width: 10%;">Thời lượng (giờ)</th>
+                    <th style="width: 20%;">Phương pháp tự học</th>
+                    <th style="width: 15%;">Cách thức đánh giá</th>
+                    <th style="width: 15%;">Minh chứng</th>
                 </tr>
-            <?php endforeach; else: ?>
-                <tr><td colspan="6" class="text-center text-muted">Chưa cấu hình hoạt động tự học</td></tr>
-            <?php endif; ?>
-        </tbody>
-    </table>
+            </thead>
+            <tbody>
+                <?php if (!empty($selfStudyActivities)): ?>
+                    <?php foreach ($selfStudyActivities as $s_act): ?>
+                        <tr>
+                            <td class="fw-semibold"><?= h($s_act['activity_name']) ?></td>
+                            <td class="text-center"><?= h($s_act['clos_codes'] ?: '---') ?></td>
+                            <td class="text-center"><?= h($s_act['duration_hours']) ?></td>
+                            <td><?= h($s_act['method']) ?></td>
+                            <td><?= h($s_act['assessment_method']) ?></td>
+                            <td><?= h($s_act['evidence']) ?></td>
+                        </tr>
+                    <?php endforeach; ?>
+                <?php else: ?>
+                    <tr>
+                        <td colspan="6" class="text-center text-muted">Chưa thiết lập nội dung lượng giá hoạt động tự học.</td>
+                    </tr>
+                <?php endif; ?>
+            </tbody>
+        </table>
+    </div>
 
     <div class="section-title">5. NỘI DUNG HỌC PHẦN VÀ TIẾN ĐỘ GIẢNG DẠY</div>
     <div class="sub-section-header"><div class="sub-section-title">5.1. Tiến độ bài giảng Lý thuyết</div></div>
@@ -270,7 +283,7 @@ $resources = $stmtRes->fetchAll(PDO::FETCH_ASSOC);
                     <td><?= h($t['method']) ?></td>
                     <td class="text-center"><?= h($t['class_hours']) ?></td>
                     <td class="text-center"><?= h($t['self_study_hours']) ?></td>
-                    <td class="text-center text-success fw-bold"><?= h($t['clos_codes']) ?></td>
+                    <td class="text-center"><?= h($t['clos_codes']) ?></td>
                     <td><?= h($t['textbook_info']) ?></td>
                 </tr>
             <?php endforeach; else: ?>
@@ -298,8 +311,8 @@ $resources = $stmtRes->fetchAll(PDO::FETCH_ASSOC);
                     <td><?= h($p['content']) ?></td>
                     <td><?= h($p['method']) ?></td>
                     <td class="text-center"><?= h($p['lab_hours']) ?></td>
-                    <td class="text-center text-success fw-bold"><?= h($p['clos_codes']) ?></td>
-                    <td><?= h($p['facility']) ?></td>
+                    <td class="text-center"><?= h($p['clos_codes']) ?></td>
+                    <td><?= h($p['facility_name'] ?? 'Chưa bố trí') ?></td>
                 </tr>
             <?php endforeach; else: ?>
                 <tr><td colspan="6" class="text-center text-muted">Chưa thiết lập nội dung thực hành</td></tr>
@@ -329,9 +342,9 @@ $resources = $stmtRes->fetchAll(PDO::FETCH_ASSOC);
                     <td><?= h($cb['method']) ?></td>
                     <td class="text-center"><?= h($cb['theory_hours']) ?></td>
                     <td class="text-center"><?= h($cb['practical_hours']) ?></td>
-                    <td class="text-center"><?= h($cb['selfstudy_hours']) ?></td>
-                    <td class="text-center text-success fw-bold"><?= h($cb['clos_codes']) ?></td>
-                    <td><?= h($cb['facility']) ?></td>
+                    <td class="text-center"><?= h($cb['self_study_hours']) ?></td>
+                    <td class="text-center"><?= h($cb['clos_codes']) ?></td>
+                    <td><?= h($cb['facility_name'] ?? 'Chưa bố trí') ?></td>
                 </tr>
             <?php endforeach; else: ?>
                 <tr><td colspan="8" class="text-center text-muted">Chưa cấu hình nội dung tích hợp chung</td></tr>
@@ -356,7 +369,7 @@ $resources = $stmtRes->fetchAll(PDO::FETCH_ASSOC);
             </tr>
         </thead>
         <tbody>
-            <?php 
+            <?php
             $hasTeachRes = false;
             $sttTeach = 1;
             foreach ($resources as $r) {
@@ -396,7 +409,7 @@ $resources = $stmtRes->fetchAll(PDO::FETCH_ASSOC);
             </tr>
         </thead>
         <tbody>
-            <?php 
+            <?php
             $hasSelfRes = false;
             $sttSelf = 1;
             foreach ($resources as $r) {

@@ -37,7 +37,7 @@ $blocks = $pdo->query(
     <div class="container">
         <h1>Khối kiến thức</h1>
         <p>
-            <a href="majors.php">Quản lý ngành</a> | 
+            <a href="majors.php">Quản lý ngành</a> |
             <a href="index.php">Về form module</a>
         </p>
 

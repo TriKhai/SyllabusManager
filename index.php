@@ -1,4 +1,4 @@
-<?php 
+<?php
 require 'db.php';
 ini_set('display_errors', 1);
 error_reporting(E_ALL);
@@ -51,9 +51,9 @@ if($course_id){
     <h2 class="text-center main-title">Xây dựng Đề cương chi tiết học phần</h2>
 
     <form action="save.php" method="POST" onsubmit="return gatherJsonData();" onkeydown="return event.key != 'Enter';" autocomplete="off">
-        
+
         <div class="section-title">1. THÔNG TIN HỌC PHẦN</div>
-        
+
         <div class="row g-3">
             <div class="col-md-6">
                 <label class="form-label fw-bold">Chọn học phần nền từ hệ thống:</label>
@@ -158,7 +158,7 @@ if($course_id){
         </div>
 
         <div class="section-title">3. MỤC TIÊU VÀ CHUẨN ĐẦU RA HỌC PHẦN</div>
-        
+
         <div class="sub-section-header">
             <div class="sub-section-title">3.1. Mục tiêu</div>
         </div>
@@ -185,7 +185,7 @@ if($course_id){
         <input type="hidden" id="clos_json" name="clos_json">
 
         <div class="section-title">4. PHƯƠNG PHÁP KIỂM TRA, LƯỢNG GIÁ HỌC PHẦN</div>
-        
+
         <div class="sub-section-header">
             <div class="sub-section-title">4.1. Thang điểm lượng giá</div>
         </div>
@@ -236,7 +236,7 @@ if($course_id){
 
 
         <div class="section-title">5. NỘI DUNG HỌC PHẦN VÀ PHƯƠNG PHÁP DẠY-HỌC</div>
-        
+
         <div class="sub-section-header">
             <div class="sub-section-title">5.1. Lý thuyết</div>
             <button type="button" class="btn btn-sm btn-primary" onclick="addTheoryRow();">+ Thêm bài giảng lý thuyết</button>
@@ -305,7 +305,7 @@ if($course_id){
 
 
         <div class="section-title">6. TÀI LIỆU DẠY HỌC</div>
-        
+
         <div class="sub-section-header">
             <div class="sub-section-title">6.1. Tài liệu giảng dạy</div>
             <button type="button" class="btn btn-sm btn-primary" onclick="addResourceRow('resourceTeachTable');">+ Thêm tài liệu giảng dạy</button>
@@ -365,6 +365,15 @@ const dbFacilities = <?php echo json_encode($facilitiesList); ?>;
 const dbBooks = <?php echo json_encode($booksCatalog); ?>;
 const dbCoursesList = <?php echo json_encode($courses); ?>;
 
+function h(value) {
+    return String(value ?? '')
+        .replaceAll('&', '&amp;')
+        .replaceAll('<', '&lt;')
+        .replaceAll('>', '&gt;')
+        .replaceAll('"', '&quot;')
+        .replaceAll("'", '&#039;');
+}
+
 // Danh sách Hình thức lượng giá cho mục 4.2 (Hỗ trợ Multi-select)
 const assessmentMethods = ["Chuyên cần", "Thi viết", "Thi kết thúc", "Kiểm tra thường", "Logbook", "OCSE", "Tự học", "Đánh giá thái độ"];
 
@@ -414,10 +423,10 @@ function extractCourseName() {
         document.getElementById('code').value = target.code;
         document.getElementById('theory_hours').value = target.theory_hours;
         document.getElementById('practice_hours').value = target.practice_hours;
-        
+
         // Tự động tính tổng số tiết sau khi điền dữ liệu gốc từ hệ thống
         calculateTotalHours();
-        
+
         // Giả lập tính toán số tín chỉ từ số giờ nếu hệ thống có logic tương ứng (hoặc để trống người dùng tự điền)
         document.getElementById('credits_theory').value = Math.round(target.theory_hours / 15) || 0;
         document.getElementById('credits_practice').value = Math.round(target.practice_hours / 30) || 0;
@@ -437,16 +446,14 @@ function calculateTotalHours() {
     document.getElementById('total_hours').value = lt + th;
 }
 
-// -------------------------------------------------------------
-// LOGIC XỬ LÝ BẢNG ĐỘNG 3.2: CHUẨN ĐẦU RA HỌC PHẦN (CLO)
-// -------------------------------------------------------------
 let cloIndex = 0;
+let assessmentRowIndex = 0;
 
 function addCloRow() {
     cloIndex++;
     const tbody = document.querySelector('#cloTable tbody');
     const tr = document.createElement('tr');
-    
+
     // Tạo sẵn danh sách option Bloom cho từng nhóm để gắn vào giao diện ngầm
     let optKt = bloomDictionary["Kiến thức"].map(item => `<option value="${item}">${item}</option>`).join('');
     let optKn = bloomDictionary["Kỹ năng"].map(item => `<option value="${item}">${item}</option>`).join('');
@@ -495,7 +502,7 @@ function addCloRow() {
         </td>
     `;
     tbody.appendChild(tr);
-    
+
     // Khởi tạo select2 dạng ẩn/hiện mượt mà
     $(tr.querySelectorAll('.select2-simple')).select2({ width: '100%' });
 }
@@ -504,15 +511,15 @@ function toggleBloomSelect(chk) {
     // Tìm đến thẻ select nằm cùng hàng d-flex với checkbox
     const parentDiv = chk.closest('.d-flex');
     const selectEl = parentDiv.querySelector('.sel-bloom');
-    
+
     if (chk.checked) {
         // Kích hoạt lại select
         selectEl.disabled = false;
         $(selectEl).show(); // Hiển thị thẻ select gốc
-        
+
         // Hiển thị khung Select2 bọc ngoài và ép cấu hình lại chiều rộng
         $(selectEl).next('.select2-container').show();
-        $(selectEl).select2({ width: '100%' }); 
+        $(selectEl).select2({ width: '100%' });
     } else {
         // Vô hiệu hóa và ẩn đi khi bỏ chọn
         selectEl.disabled = true;
@@ -525,14 +532,14 @@ function updateBloomOptions(domainSelect) {
     const tr = domainSelect.closest('tr');
     const bloomSelect = tr.querySelector('.c-bloom');
     const selectedDomain = domainSelect.value;
-    
+
     let optionsHtml = '';
     if(bloomDictionary[selectedDomain]) {
         bloomDictionary[selectedDomain].forEach(item => {
             optionsHtml += `<option value="${item}">${item}</option>`;
         });
     }
-    
+
     bloomSelect.innerHTML = optionsHtml;
     $(bloomSelect).trigger('change'); // Làm tươi cấu trúc Select2
 }
@@ -547,25 +554,27 @@ function removeCloRow(btn) {
     });
 }
 
-// -------------------------------------------------------------
-// LOGIC XỬ LÝ BẢNG ĐỘNG 4.2: PHƯƠNG PHÁP KIỂM TRA LƯỢNG GIÁ
-// -------------------------------------------------------------
 function addAssessmentRow() {
     const tbody = document.querySelector('#assessmentTable tbody');
     const tr = document.createElement('tr');
-    
+    assessmentRowIndex++;
+    const rowId = assessmentRowIndex;
+
     let methodOptions = assessmentMethods.map(m => `<option value="${m}">${m}</option>`).join('');
-    
+
     tr.innerHTML = `
-        <td><input type="text" class="form-control a-clos" placeholder="e.g. CLO_1"></td>
-        <td><input type="text" class="form-control a-plo" placeholder="e.g. PLO1.1"></td>
         <td>
-            <select class="form-select a-form select2-multiple" multiple="multiple">
+            <input type="hidden" name="assessment_row_ids[]" value="${rowId}">
+            <input type="text" class="form-control a-clos" name="assessment_clos[]">
+        </td>
+        <td><input type="text" class="form-control a-plo" name="assessment_plo_pi[]"></td>
+        <td>
+            <select class="form-select a-form select2-multiple" name="assessment_form_${rowId}[]" multiple="multiple">
                 ${methodOptions}
             </select>
         </td>
-        <td><input type="text" class="form-control a-tool" placeholder="Người dùng tự nhập công cụ"></td>
-        <td><input type="number" class="form-control a-weight" value="0" min="0" max="100"></td>
+        <td><input type="text" class="form-control a-tool" name="assessment_tool[]" placeholder="Người dùng tự nhập công cụ"></td>
+        <td><input type="number" class="form-control a-weight" name="assessment_weight[]" value="0" min="0" max="100"></td>
         <td class="text-center"><button type="button" class="btn btn-sm btn-danger" onclick="this.closest('tr').remove();">Xóa</button></td>
     `;
     tbody.appendChild(tr);
@@ -575,37 +584,25 @@ function addAssessmentRow() {
     });
 }
 
-// -------------------------------------------------------------
-// LOGIC XỬ LÝ BẢNG ĐỘNG 4.3: PHƯƠNG PHÁP LƯỢNG GIÁ TỰ HỌC
-// -------------------------------------------------------------
 function addSelfStudyRow() {
     const tbody = document.querySelector('#selfStudyTable tbody');
     const tr = document.createElement('tr');
     tr.innerHTML = `
-        <td><input type="text" class="form-control ss-activity" placeholder="Tự nhập hoạt động"></td>
-        <td><input type="text" class="form-control ss-clos" placeholder="Tự nhập CLOs"></td>
-        <td><input type="number" class="form-control ss-duration" value="0" min="0"></td>
-        <td><input type="text" class="form-control ss-method" placeholder="Phương pháp tự học"></td>
-        <td><input type="text" class="form-control ss-assess" placeholder="Cách thức đánh giá"></td>
-        <td><input type="text" class="form-control ss-evidence" placeholder="Minh chứng"></td>
+        <td><input type="text" class="form-control ss-activity" name="self_study_name[]" placeholder="Tự nhập hoạt động"></td>
+        <td><input type="text" class="form-control ss-clos" name="self_study_clos[]" placeholder="Tự nhập CLOs"></td>
+        <td><input type="number" class="form-control ss-duration" name="self_study_duration[]" value="0" min="0"></td>
+        <td><input type="text" class="form-control ss-method" name="self_study_method[]" placeholder="Phương pháp tự học"></td>
+        <td><input type="text" class="form-control ss-assess" name="self_study_assess[]" placeholder="Cách thức đánh giá"></td>
+        <td><input type="text" class="form-control ss-evidence" name="self_study_evidence[]" placeholder="Minh chứng"></td>
         <td class="text-center"><button type="button" class="btn btn-sm btn-danger" onclick="this.closest('tr').remove();">Xóa</button></td>
     `;
     tbody.appendChild(tr);
 }
 
-// -------------------------------------------------------------
-// LOGIC XỬ LÝ BẢNG ĐỘNG 5.1: LÝ THUYẾT (STT Chương/Bài riêng biệt)
-// -------------------------------------------------------------
-// -------------------------------------------------------------
-// LOGIC XỬ LÝ BẢNG ĐỘNG 5.1: LÝ THUYẾT (Sửa lỗi nút thêm và đếm STT riêng)
-// -------------------------------------------------------------
-// -------------------------------------------------------------
-// LOGIC XỬ LÝ BẢNG ĐỘNG 5.1: LÝ THUYẾT (Sửa thành textarea tự nhập hoàn toàn)
-// -------------------------------------------------------------
 function addTheoryRow() {
     const tbody = document.querySelector('#theoryTopicTable tbody');
     const tr = document.createElement('tr');
-    
+
     // Tạo danh sách Sách/Giáo trình hỗ trợ tìm kiếm/gõ thêm
     let textbookOptions = `<option value="">-- Chọn giáo trình --</option>`;
     if (typeof dbBooks !== 'undefined' && dbBooks.length > 0) {
@@ -619,24 +616,24 @@ function addTheoryRow() {
                 <option value="Chương">Chương</option>
                 <option value="Bài">Bài</option>
             </select>
-            <input type="text" class="form-control t-chapter-label text-center fw-bold mt-1 bg-light" readonly>
+            <input type="text" class="form-control t-chapter-label text-center fw-bold mt-1 bg-light" name="theory_chapter[]" readonly>
         </td>
         <td>
-            <textarea class="form-control t-title" rows="2" placeholder="Người dùng tự nhập nội dung bài giảng lý thuyết..."></textarea>
+            <textarea class="form-control t-title" name="theory_title[]" rows="2" placeholder="Người dùng tự nhập nội dung bài giảng lý thuyết..."></textarea>
         </td>
-        <td><input type="text" class="form-control t-method" value="Học trên lớp"></td>
-        <td><input type="number" class="form-control t-class" value="0" min="0"></td>
-        <td><input type="number" class="form-control t-self" value="0" min="0"></td>
-        <td><input type="text" class="form-control t-clos" placeholder="Tự nhập CLOs"></td>
-        <td><select class="form-select t-textbook select2-searchable">${textbookOptions}</select></td>
+        <td><input type="text" class="form-control t-method" name="theory_method[]" value="Học trên lớp"></td>
+        <td><input type="number" class="form-control t-class" name="theory_class_hours[]" value="0" min="0"></td>
+        <td><input type="number" class="form-control t-self" name="theory_self_hours[]" value="0" min="0"></td>
+        <td><input type="text" class="form-control t-clos" name="theory_clos[]" placeholder="Tự nhập CLOs"></td>
+        <td><select class="form-select t-textbook select2-searchable" name="theory_book[]">${textbookOptions}</select></td>
         <td class="text-center"><button type="button" class="btn btn-sm btn-danger" onclick="removeTheoryRow(this)">Xóa</button></td>
     `;
     tbody.appendChild(tr);
-    
+
     // Khởi tạo select2
     $(tr.querySelectorAll('.select2-simple')).select2({ width: '100%' });
     $(tr.querySelectorAll('.select2-searchable')).select2({ width: '100%', tags: true });
-    
+
     reindexTheoryChaptersAndLessons();
 }
 
@@ -649,11 +646,11 @@ function removeTheoryRow(btn) {
 function reindexTheoryChaptersAndLessons() {
     let chapterCount = 0;
     let lessonCount = 0;
-    
+
     document.querySelectorAll('#theoryTopicTable tbody tr').forEach(tr => {
         const typeSelect = tr.querySelector('.t-type');
         if (!typeSelect) return;
-        
+
         const type = typeSelect.value;
         if (type === "Chương") {
             chapterCount++;
@@ -671,18 +668,18 @@ function reindexTheoryChaptersAndLessons() {
 function addPracticalRow() {
     const tbody = document.querySelector('#practicalTopicTable tbody');
     const tr = document.createElement('tr');
-    
+
     let facilityOptions = `<option value="">-- Chọn cơ sở thực hành --</option>`;
     dbFacilities.forEach(f => { facilityOptions += `<option value="${f}">${f}</option>`; });
     facilityOptions += `<option value="Option 1">Option 1</option><option value="Option 2">Option 2</option><option value="Option 3">Option 3</option>`;
 
     tr.innerHTML = `
-        <td><input type="text" class="form-control p-topic" placeholder="Tự nhập chủ đề"></td>
-        <td><textarea class="form-control p-content" rows="1" placeholder="Nội dung thực hành"></textarea></td>
-        <td><input type="text" class="form-control p-method" placeholder="Hình thức dạy"></td>
-        <td><input type="number" class="form-control p-hours" value="0" min="0"></td>
-        <td><input type="text" class="form-control p-clos" placeholder="Tự nhập CLOs"></td>
-        <td><select class="form-select p-facility select2-searchable">${facilityOptions}</select></td>
+        <td><input type="text" class="form-control p-topic" name="practical_topic[]" placeholder="Tự nhập chủ đề"></td>
+        <td><textarea class="form-control p-content" name="practical_content[]" rows="1" placeholder="Nội dung thực hành"></textarea></td>
+        <td><input type="text" class="form-control p-method" name="practical_method[]" placeholder="Hình thức dạy"></td>
+        <td><input type="number" class="form-control p-hours" name="practical_hours[]" value="0" min="0"></td>
+        <td><input type="text" class="form-control p-clos" name="practical_clos[]" placeholder="Tự nhập CLOs"></td>
+        <td><select class="form-select p-facility select2-searchable" name="practical_facility[]">${facilityOptions}</select></td>
         <td class="text-center"><button type="button" class="btn btn-sm btn-danger" onclick="this.closest('tr').remove();">Xóa</button></td>
     `;
     tbody.appendChild(tr);
@@ -695,20 +692,20 @@ function addPracticalRow() {
 function addCombinedRow() {
     const tbody = document.querySelector('#combinedTopicTable tbody');
     const tr = document.createElement('tr');
-    
+
     let facilityOptions = `<option value="">-- Chọn cơ sở --</option>`;
     dbFacilities.forEach(f => { facilityOptions += `<option value="${f}">${f}</option>`; });
     facilityOptions += `<option value="Option 1">Option 1</option><option value="Option 2">Option 2</option><option value="Option 3">Option 3</option>`;
 
     tr.innerHTML = `
         <td class="text-center fw-bold combined-stt"></td>
-        <td><textarea class="form-control c-content" rows="1" placeholder="Nội dung chính"></textarea></td>
-        <td><input type="text" class="form-control c-method" placeholder="Hình thức dạy"></td>
-        <td><input type="number" class="form-control c-lt" value="0" min="0"></td>
-        <td><input type="number" class="form-control c-th" value="0" min="0"></td>
-        <td><input type="number" class="form-control c-sh" value="0" min="0"></td>
-        <td><input type="text" class="form-control c-clos" placeholder="Tự nhập CLOs"></td>
-        <td><select class="form-select c-facility select2-searchable">${facilityOptions}</select></td>
+        <td><textarea class="form-control c-content" name="combined_content[]" rows="1" placeholder="Nội dung chính"></textarea></td>
+        <td><input type="text" class="form-control c-method" name="combined_method[]" placeholder="Hình thức dạy"></td>
+        <td><input type="number" class="form-control c-lt" name="combined_theory_hours[]" value="0" min="0"></td>
+        <td><input type="number" class="form-control c-th" name="combined_practice_hours[]" value="0" min="0"></td>
+        <td><input type="number" class="form-control c-sh" name="combined_self_hours[]" value="0" min="0"></td>
+        <td><input type="text" class="form-control c-clos" name="combined_clos[]" placeholder="Tự nhập CLOs"></td>
+        <td><select class="form-select c-facility select2-searchable" name="combined_facility[]">${facilityOptions}</select></td>
         <td class="text-center"><button type="button" class="btn btn-sm btn-danger" onclick="removeCombinedRow(this);">Xóa</button></td>
     `;
     tbody.appendChild(tr);
@@ -733,6 +730,7 @@ function reindexCombinedTable() {
 function addResourceRow(tableId) {
     const tbody = document.querySelector(`#${tableId} tbody`);
     const tr = document.createElement('tr');
+    const fieldPrefix = tableId === 'resourceTeachTable' ? 'res_teach' : 'res_self';
 
     let bookOptions = `<option value="">-- Chọn hoặc tìm giáo trình có sẵn --</option>`;
     dbBooks.forEach(b => {
@@ -744,11 +742,11 @@ function addResourceRow(tableId) {
 
     tr.innerHTML = `
         <td class="text-center fw-bold res-stt"></td>
-        <td><select class="form-select book-title-select" onchange="autoFillBookDetails(this);">${bookOptions}</select></td>
-        <td><input type="text" class="form-control book-editor" readonly placeholder="Chủ biên"></td>
-        <td><input type="text" class="form-control book-publisher" readonly placeholder="Nhà xuất bản"></td>
-        <td><input type="text" class="form-control book-year" readonly placeholder="Năm"></td>
-        <td><input type="text" class="form-control book-isbn" readonly placeholder="Mã định danh"></td>
+        <td><select class="form-select book-title-select" name="${fieldPrefix}_book_id[]" onchange="autoFillBookDetails(this);">${bookOptions}</select></td>
+        <td><input type="text" class="form-control book-editor" name="${fieldPrefix}_editor[]" readonly placeholder="Chủ biên"></td>
+        <td><input type="text" class="form-control book-publisher" name="${fieldPrefix}_publisher[]" readonly placeholder="Nhà xuất bản"></td>
+        <td><input type="text" class="form-control book-year" name="${fieldPrefix}_year[]" readonly placeholder="Năm"></td>
+        <td><input type="text" class="form-control book-isbn" name="${fieldPrefix}_isbn[]" readonly placeholder="Mã định danh"></td>
         <td class="text-center"><button type="button" class="btn btn-sm btn-danger" onclick="removeResourceRow('${tableId}', this);">Xóa</button></td>
     `;
     tbody.appendChild(tr);
@@ -789,7 +787,7 @@ function reindexResourceTable(tableId) {
 function gatherJsonData() {
     console.log("%c--- BẮT ĐẦU KIỂM TRA TOÀN BỘ GIÁ TRỊ TRONG FORM TRƯỚC KHI LƯU ---", "color: #1a446c; font-weight: bold; font-size: 14px;");
 
-    // 1. In và kiểm tra các giá trị thuộc tính text/select cơ bản 
+    // 1. In và kiểm tra các giá trị thuộc tính text/select cơ bản
     let basicData = {
         course_id: document.getElementById('courseSelect').value,
         name_vn: document.getElementById('courseName').value,
@@ -840,16 +838,20 @@ function gatherJsonData() {
 
     // 3. Thu thập Thành phần lượng giá (Assessments)
     let assessments = [];
-    document.querySelectorAll('#assessmentTable tbody tr').forEach(tr => {
-        let componentVal = tr.querySelector('.a-component').value;
-        let selectedForms = $(tr.querySelector('.sel-methods')).val() || [];
+    document.querySelectorAll('#assessmentTable tbody tr').forEach((tr) => {
+        // Thu thập các checkbox hoặc select mã CLO được chọn
+        let selectedClos = [];
+        tr.querySelectorAll('.clo-checkbox:checked, .clo-select option:selected').forEach(el => {
+            selectedClos.push(el.value);
+        });
+
         assessments.push({
-            clos: tr.querySelector('.a-clos').value,
-            plo_pi: tr.querySelector('.a-plopi').value,
-            component: componentVal,
-            form: selectedForms.join(', '),
-            tool: tr.querySelector('.a-tool').value,
-            weight: tr.querySelector('.a-weight').value
+            clos: selectedClos.join(', '), // Chuỗi mã CLO cách nhau bằng dấu phẩy
+            clos: tr.querySelector('.a-clos')?.value || selectedClos.join(', '),
+            plo_pi: tr.querySelector('.a-plo')?.value || '',
+            form: ($(tr.querySelector('.a-form')).val() || []).join(', '),
+            tool: tr.querySelector('.a-tool')?.value || '',
+            weight: tr.querySelector('.a-weight')?.value || 0
         });
     });
     document.getElementById('assessments_json').value = JSON.stringify(assessments);
@@ -859,9 +861,9 @@ function gatherJsonData() {
     let selfStudy = [];
     document.querySelectorAll('#selfStudyTable tbody tr').forEach(tr => {
         selfStudy.push({
-            name: tr.querySelector('.ss-name').value,
+            name: tr.querySelector('.ss-activity')?.value || '',
             clos: tr.querySelector('.ss-clos').value,
-            hours: tr.querySelector('.ss-hours').value,
+            hours: tr.querySelector('.ss-duration')?.value || 0,
             method: tr.querySelector('.ss-method').value,
             assess: tr.querySelector('.ss-assess').value,
             evidence: tr.querySelector('.ss-evidence').value
@@ -874,13 +876,13 @@ function gatherJsonData() {
     let theory = [];
     document.querySelectorAll('#theoryTopicTable tbody tr').forEach(tr => {
         theory.push({
-            chapter: tr.querySelector('.t-chapter').value,
+            chapter: tr.querySelector('.t-chapter-label')?.value || '',
             title: tr.querySelector('.t-title').value,
             method: tr.querySelector('.t-method').value,
-            hours_class: tr.querySelector('.t-h-class').value,
-            hours_self: tr.querySelector('.t-h-self').value,
+            hours_class: tr.querySelector('.t-class')?.value || 0,
+            hours_self: tr.querySelector('.t-self')?.value || 0,
             clos: tr.querySelector('.t-clos').value,
-            book: tr.querySelector('.t-book').value
+            book: $(tr.querySelector('.t-textbook')).val() || ''
         });
     });
     document.getElementById('theory_json').value = JSON.stringify(theory);
@@ -893,7 +895,7 @@ function gatherJsonData() {
             topic: tr.querySelector('.p-topic').value,
             content: tr.querySelector('.p-content').value,
             method: tr.querySelector('.p-method').value,
-            hours_lab: tr.querySelector('.p-h-lab').value,
+            hours_lab: tr.querySelector('.p-hours')?.value || 0,
             clos: tr.querySelector('.p-clos').value,
             facility: $(tr.querySelector('.p-facility')).val()
         });
@@ -906,13 +908,13 @@ function gatherJsonData() {
     document.querySelectorAll('#combinedTopicTable tbody tr').forEach((tr, index) => {
         combined.push({
             stt: index + 1,
-            content: tr.querySelector('.cb-content').value,
-            method: tr.querySelector('.cb-method').value,
-            hours_theory: tr.querySelector('.cb-h-lt').value,
-            hours_practice: tr.querySelector('.cb-h-th').value,
-            hours_self: tr.querySelector('.cb-h-sh').value,
-            clos: tr.querySelector('.cb-clos').value,
-            facility: $(tr.querySelector('.cb-facility')).val()
+            content: tr.querySelector('.c-content')?.value || '',
+            method: tr.querySelector('.c-method')?.value || '',
+            hours_theory: tr.querySelector('.c-lt')?.value || 0,
+            hours_practice: tr.querySelector('.c-th')?.value || 0,
+            hours_self: tr.querySelector('.c-sh')?.value || 0,
+            clos: tr.querySelector('.c-clos')?.value || '',
+            facility: $(tr.querySelector('.c-facility')).val()
         });
     });
     document.getElementById('combined_json').value = JSON.stringify(combined);
@@ -947,9 +949,9 @@ function gatherJsonData() {
     console.log("9. Mảng Tài liệu tự học đã đóng gói JSON:", resSelf);
 
     console.log("%c--- KIỂM TRA HOÀN TẤT. DỮ LIỆU HỢP LỆ VÀ ĐÃ ĐƯỢC CHUYỂN ĐI! ---", "color: #27ae60; font-weight: bold; font-size: 14px;");
-    
+
     // Trả về true để trình duyệt tiếp tục gửi form đến file save.php sau khi đã in log thành công
-    return true; 
+    return true;
 }
 
 // KHỞI TẠO CÁC CẤU HÌNH BAN ĐẦU KHI TRANG TẢI XONG
@@ -961,7 +963,7 @@ $(document).ready(function() {
     });
 
     $('.select2-enable').select2({ width: '100%' });
-    
+
     // Nạp sẵn cấu trúc rỗng ban đầu cho form chuyên nghiệp
     addCloRow();
     addAssessmentRow();
@@ -971,11 +973,12 @@ $(document).ready(function() {
     addCombinedRow();
     addResourceRow('resourceTeachTable');
     addResourceRow('resourceSelfTable');
-    
+
     <?php if($selectedCourse): ?>
         extractCourseName();
     <?php endif; ?>
 });
+
 </script>
 </body>
 </html>
