@@ -91,12 +91,20 @@ $combinedTopics = $stmtCombined->fetchAll(PDO::FETCH_ASSOC);
 $stmtRes = $pdo->prepare("SELECT * FROM resources WHERE module_id = ? ORDER BY resource_type ASC, sort_order ASC");
 $stmtRes->execute([$id]);
 $resources = $stmtRes->fetchAll(PDO::FETCH_ASSOC);
+
+// Fallback an toàn cho các cột mới (chưa migrate DB cũ sẽ không có)
+$module['total_hours']      = $module['total_hours']      ?? (($module['theory_hours'] ?? 0) + ($module['practical_hours'] ?? 0));
+$module['credits_theory']   = $module['credits_theory']   ?? 0;
+$module['credits_practice'] = $module['credits_practice'] ?? 0;
+$module['prerequisite_modules'] = $module['prerequisite_modules'] ?? '';
+$module['parallel_modules']     = $module['parallel_modules']     ?? '';
+$module['previous_modules']     = $module['previous_modules']     ?? '';
 ?>
 <!DOCTYPE html>
 <html lang="vi">
 <head>
     <meta charset="UTF-8">
-    <title>Chi tiết Đề cương học phần: <?= h($module['name_vn']) ?></title>
+    <title>Chi tiết Đề cương học phần: <?= h($module['name']) ?></title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
         body { background-color: #f4f6f9; padding-top: 30px; padding-bottom: 50px; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
@@ -107,6 +115,12 @@ $resources = $stmtRes->fetchAll(PDO::FETCH_ASSOC);
         .sub-section-title { font-weight: 600; color: #2c3e50; margin: 0; }
         .table th { background-color: #f8f9fa; color: #333; font-weight: 600; text-align: center; vertical-align: middle; font-size: 14px; }
         .info-label { font-weight: bold; color: #34495e; }
+        .hours-box { display: flex; gap: 0; border: 1px solid #dee2e6; border-radius: 6px; overflow: hidden; }
+        .hours-box-item { flex: 1; padding: 6px 10px; text-align: center; border-right: 1px solid #dee2e6; }
+        .hours-box-item:last-child { border-right: none; }
+        .hours-box-item .label { font-size: 11px; color: #6c757d; display: block; }
+        .hours-box-item .value { font-size: 15px; font-weight: 700; color: #1a446c; display: block; }
+        .hours-box-item.total { background-color: #f0f4f8; }
     </style>
 </head>
 <body>
@@ -118,25 +132,58 @@ $resources = $stmtRes->fetchAll(PDO::FETCH_ASSOC);
     <div class="section-title">1. THÔNG TIN HỌC PHẦN</div>
     <div class="row g-3">
         <div class="col-md-6"><span class="info-label">Học phần nền:</span> <?= h($module['course_name'] ?? 'Không chọn') ?></div>
-        <div class="col-md-6"><span class="info-label">Tên học phần:</span> <?= h($module['name_vn']) ?></div>
+        <div class="col-md-6"><span class="info-label">Tên học phần:</span> <?= h($module['name']) ?></div>
         <div class="col-md-6"><span class="info-label">Mã học phần:</span> <?= h($module['code']) ?></div>
         <div class="col-md-6"><span class="info-label">Tính chất học phần:</span> <?= h($module['type']) ?></div>
 
-        <div class="col-md-4"><span class="info-label">Số tín chỉ:</span> <?= h($module['credits']) ?> tín chỉ</div>
-        <div class="col-md-4"><span class="info-label">Số tiết lý thuyết:</span> <?= h($module['theory_hours']) ?> tiết</div>
-        <div class="col-md-4"><span class="info-label">Số tiết thực hành:</span> <?= h($module['practical_hours']) ?> tiết</div>
-        <div class="col-md-4"><span class="info-label">Số giờ tự học:</span> <?= h($module['self_study_hours']) ?> tiết</div>
+        <div class="col-md-4">
+            <span class="info-label d-block mb-1">Số tín chỉ (Tổng / LT / TH):</span>
+            <div class="hours-box">
+                <div class="hours-box-item total">
+                    <span class="label">Tổng số TC</span>
+                    <span class="value"><?= h($module['credits']) ?></span>
+                </div>
+                <div class="hours-box-item">
+                    <span class="label">Lý thuyết</span>
+                    <span class="value"><?= h($module['credits_theory']) ?></span>
+                </div>
+                <div class="hours-box-item">
+                    <span class="label">Thực hành</span>
+                    <span class="value"><?= h($module['credits_practice']) ?></span>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <span class="info-label d-block mb-1">Phân bổ thời gian tiết (Tổng / LT / TH):</span>
+            <div class="hours-box">
+                <div class="hours-box-item total">
+                    <span class="label">Tổng tiết</span>
+                    <span class="value"><?= h($module['total_hours']) ?></span>
+                </div>
+                <div class="hours-box-item">
+                    <span class="label">Lý thuyết</span>
+                    <span class="value"><?= h($module['theory_hours']) ?></span>
+                </div>
+                <div class="hours-box-item">
+                    <span class="label">Thực hành</span>
+                    <span class="value"><?= h($module['practical_hours']) ?></span>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4"><span class="info-label">Số giờ tự học (tiết):</span> <?= h($module['self_study_hours']) ?> tiết</div>
 
         <div class="col-md-8"><span class="info-label">Đối tượng người học:</span> <?= h($module['target_programs']) ?></div>
         <div class="col-md-6"><span class="info-label">Học kỳ dự kiến:</span> <?= h($module['expected_semester']) ?></div>
         <div class="col-md-6"><span class="info-label">Năm học dự kiến:</span> <?= h($module['expected_year']) ?></div>
 
-        <div class="col-md-4"><span class="info-label">Học phần tiên quyết:</span> <?= h($module['prerequisite_modules'] ?? 'Không') ?></div>
-        <div class="col-md-4"><span class="info-label">Học phần song hành:</span> <?= h($module['parallel_modules'] ?? 'Không') ?></div>
-        <div class="col-md-4"><span class="info-label">Học phần học trước:</span> <?= h($module['previous_modules'] ?? 'Không') ?></div>
+        <div class="col-md-4"><span class="info-label">Học phần tiên quyết:</span> <?= h($module['prerequisite_modules'] ?? '') ?: 'Không' ?></div>
+        <div class="col-md-4"><span class="info-label">Học phần song hành:</span> <?= h($module['parallel_modules'] ?? '') ?: 'Không' ?></div>
+        <div class="col-md-4"><span class="info-label">Học phần học trước:</span> <?= h($module['previous_modules'] ?? '') ?: 'Không' ?></div>
 
-        <div class="col-md-4"><span class="info-label">Bộ môn phụ trách:</span> <?= h($module['department_in_charge']) ?></div>
-        <div class="col-md-4"><span class="info-label">Ban điều phối:</span> <?= h($module['coordinating_board']) ?></div>
+        <div class="col-md-4"><span class="info-label">Bộ môn tham gia giảng dạy:</span> <?= h($module['department_in_charge']) ?></div>
+        <div class="col-md-4"><span class="info-label">Ban điều phối học phần:</span> <?= h($module['coordinating_board']) ?></div>
         <div class="col-md-4"><span class="info-label">Khoa phụ trách:</span> <?= h($module['faculty_in_charge']) ?></div>
     </div>
 
@@ -197,7 +244,7 @@ $resources = $stmtRes->fetchAll(PDO::FETCH_ASSOC);
     <div class="p-3 bg-light border rounded mb-3"><?= h($module['grading_scale']) ?></div>
 
     <div class="section">
-        <h4>4.2. Phương pháp kiểm tra lượng giá</h4>
+        <div class="sub-section-header"><div class="sub-section-title">4.2. Phương pháp kiểm tra lượng giá</div></div>
         <table class="table table-bordered align-middle">
             <thead>
                 <tr>
@@ -228,7 +275,7 @@ $resources = $stmtRes->fetchAll(PDO::FETCH_ASSOC);
         </table>
     </div>
     <div class="section">
-        <h4>4.3. Lượng giá hoạt động tự học</h4>
+        <div class="sub-section-header"><div class="sub-section-title">4.3. Lượng giá hoạt động tự học</div></div>
         <table class="table table-bordered align-middle">
             <thead>
                 <tr>

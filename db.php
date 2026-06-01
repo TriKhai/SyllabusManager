@@ -1,5 +1,4 @@
 <?php
-// Database configuration
 $DB_USER = 'root';
 $DB_PASS = '';
 $DB_HOST = 'localhost';
@@ -7,7 +6,6 @@ $DB_NAME = 'tempctdt';
 
 ini_set('display_errors', 0);
 
-// Create PDO connection
 try {
     $pdo = new PDO(
         "mysql:host=$DB_HOST;dbname=$DB_NAME;charset=utf8mb4",
@@ -23,8 +21,7 @@ try {
     exit;
 }
 
-// HTML escaping helper function
 function h($s) {
-    return htmlspecialchars($s, ENT_QUOTES, 'UTF-8');
+    return htmlspecialchars($s ?? '', ENT_QUOTES, 'UTF-8');
 }
 ?>

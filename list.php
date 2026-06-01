@@ -19,7 +19,7 @@ require 'db.php';
 
         <?php
         $stmt = $pdo->query(
-            'SELECT id, code, credits, created_at, name_vn FROM modules ORDER BY created_at DESC'
+            'SELECT id, code, credits, created_at, name FROM modules ORDER BY created_at DESC'
         );
         $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
@@ -42,7 +42,7 @@ require 'db.php';
                 echo '<tr>';
                 echo '<td>' . $stt . '</td>';
                 echo '<td>' . h($r['code']) . '</td>';
-                echo '<td>' . h($r['name_vn']) . '</td>';
+                echo '<td>' . h($r['name']) . '</td>';
                 echo '<td>' . h($r['credits']) . '</td>';
                 echo '<td>' . h($r['created_at']) . '</td>';
                 echo '<td><a href="view.php?id=' . h($r['id']) . '&edit=1" class="btn-link">Chi tiết</a></td>';

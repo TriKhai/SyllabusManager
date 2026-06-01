@@ -4,7 +4,7 @@ ini_set('display_errors', 1);
 error_reporting(E_ALL);
 
 // 1. Lấy danh sách học phần nền từ bảng courses
-$courses = $pdo->query('SELECT id, code, name, total_hours, theory_hours, practice_hours FROM courses ORDER BY code')->fetchAll(PDO::FETCH_ASSOC);
+$courses = $pdo->query('SELECT id, code, name, total_hours, theory_hours, practical_hours FROM courses ORDER BY code')->fetchAll(PDO::FETCH_ASSOC);
 
 // 2. Lấy danh mục Cơ sở thực hành
 $facilitiesList = $pdo->query('SELECT name FROM facilities ORDER BY id')->fetchAll(PDO::FETCH_COLUMN);
@@ -68,7 +68,7 @@ if($course_id){
             </div>
             <div class="col-md-6">
                 <label class="form-label fw-bold">Tên học phần:</label>
-                <input type="text" id="courseName" name="name_vn" class="form-control" required>
+                <input type="text" id="courseName" name="name" class="form-control" required>
             </div>
 
             <div class="col-md-6">
@@ -78,7 +78,7 @@ if($course_id){
             <div class="col-md-4">
                 <label class="form-label fw-bold">Tính chất học phần:</label>
                 <select name="module_type" class="form-select select2-simple">
-                    <option value="">-- Không chọn / Trống --</option>
+                    <option value="">-- Không/ Trống --</option>
                     <option value="Bắt buộc">Bắt buộc</option>
                     <option value="Điều kiện">Điều kiện</option>
                     <option value="Tự chọn">Tự chọn</option>
@@ -98,7 +98,7 @@ if($course_id){
                 <div class="input-group">
                     <input type="number" id="total_hours" name="total_hours" class="form-control bg-light" placeholder="Tổng tiết" readonly min="0">
                     <input type="number" id="theory_hours" name="theory_hours" class="form-control" placeholder="Lý thuyết" min="0" oninput="calculateTotalHours();">
-                    <input type="number" id="practice_hours" name="practice_hours" class="form-control" placeholder="Thực hành" min="0" oninput="calculateTotalHours();">
+                    <input type="number" id="practical_hours" name="practical_hours" class="form-control" placeholder="Thực hành" min="0" oninput="calculateTotalHours();">
                 </div>
             </div>
             <div class="col-md-4">
@@ -411,7 +411,7 @@ function extractCourseName() {
         document.getElementById('code').value = '';
         document.getElementById('total_hours').value = '';
         document.getElementById('theory_hours').value = '';
-        document.getElementById('practice_hours').value = '';
+        document.getElementById('practical_hours').value = '';
         document.getElementById('credits').value = '';
         document.getElementById('credits_theory').value = '';
         document.getElementById('credits_practice').value = '';
@@ -422,14 +422,12 @@ function extractCourseName() {
         document.getElementById('courseName').value = target.name;
         document.getElementById('code').value = target.code;
         document.getElementById('theory_hours').value = target.theory_hours;
-        document.getElementById('practice_hours').value = target.practice_hours;
+        document.getElementById('practical_hours').value = target.practical_hours;
 
-        // Tự động tính tổng số tiết sau khi điền dữ liệu gốc từ hệ thống
         calculateTotalHours();
 
-        // Giả lập tính toán số tín chỉ từ số giờ nếu hệ thống có logic tương ứng (hoặc để trống người dùng tự điền)
         document.getElementById('credits_theory').value = Math.round(target.theory_hours / 15) || 0;
-        document.getElementById('credits_practice').value = Math.round(target.practice_hours / 30) || 0;
+        document.getElementById('credits_practice').value = Math.round(target.practical_hours / 30) || 0;
         calculateTotalCredits();
     }
 }
@@ -442,7 +440,7 @@ function calculateTotalCredits() {
 
 function calculateTotalHours() {
     const lt = parseInt(document.getElementById('theory_hours').value) || 0;
-    const th = parseInt(document.getElementById('practice_hours').value) || 0;
+    const th = parseInt(document.getElementById('practical_hours').value) || 0;
     document.getElementById('total_hours').value = lt + th;
 }
 
@@ -702,7 +700,7 @@ function addCombinedRow() {
         <td><textarea class="form-control c-content" name="combined_content[]" rows="1" placeholder="Nội dung chính"></textarea></td>
         <td><input type="text" class="form-control c-method" name="combined_method[]" placeholder="Hình thức dạy"></td>
         <td><input type="number" class="form-control c-lt" name="combined_theory_hours[]" value="0" min="0"></td>
-        <td><input type="number" class="form-control c-th" name="combined_practice_hours[]" value="0" min="0"></td>
+        <td><input type="number" class="form-control c-th" name="combined_practical_hours[]" value="0" min="0"></td>
         <td><input type="number" class="form-control c-sh" name="combined_self_hours[]" value="0" min="0"></td>
         <td><input type="text" class="form-control c-clos" name="combined_clos[]" placeholder="Tự nhập CLOs"></td>
         <td><select class="form-select c-facility select2-searchable" name="combined_facility[]">${facilityOptions}</select></td>
@@ -790,7 +788,7 @@ function gatherJsonData() {
     // 1. In và kiểm tra các giá trị thuộc tính text/select cơ bản
     let basicData = {
         course_id: document.getElementById('courseSelect').value,
-        name_vn: document.getElementById('courseName').value,
+        name: document.getElementById('courseName').value,
         code: document.getElementById('code').value,
         module_type: document.getElementsByName('module_type')[0].value,
         credits: document.getElementById('credits').value,
@@ -798,7 +796,7 @@ function gatherJsonData() {
         credits_practice: document.getElementById('credits_practice').value,
         total_hours: document.getElementById('total_hours').value,
         theory_hours: document.getElementById('theory_hours').value,
-        practice_hours: document.getElementById('practice_hours').value,
+        practical_hours: document.getElementById('practical_hours').value,
         self_study_hours: document.getElementsByName('self_study_hours')[0].value,
         target_programs: document.getElementsByName('target_programs')[0].value,
         expected_semester: document.getElementsByName('expected_semester')[0].value,

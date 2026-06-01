@@ -19,7 +19,7 @@ try {
     $getFirstEnumValue = function(string $table, string $column) use ($pdo) {
         $stmt = $pdo->query("SHOW COLUMNS FROM {$table} LIKE " . $pdo->quote($column));
         $col = $stmt->fetch(PDO::FETCH_ASSOC);
-        if (!$col || !preg_match("/^enum\\('(.*)'\\)$/", $col['Type'], $matches)) {
+        if (!$col || !preg_match("/^enum\((.*)\)$/", $col['Type'], $matches)) {
             return '';
         }
         $values = str_getcsv($matches[1], ',', "'");
@@ -42,37 +42,63 @@ try {
         $stmt = $pdo->prepare('INSERT INTO facilities (name) VALUES (?)');
         $stmt->execute([$name]);
         return (int)$pdo->lastInsertId();
+        
+    };
+     // Hàm tìm ID nhanh từ bảng danh mục (thêm vào đầu file save.php)
+    $lookupId = function($pdo, $table, $name) {
+        if (empty($name)) return null;
+        $stmt = $pdo->prepare("SELECT id FROM {$table} WHERE name = ? LIMIT 1");
+        $stmt->execute([$name]);
+        $id = $stmt->fetchColumn();
+        return $id ? (int)$id : null;
     };
 
     // 1. Thu thập dữ liệu cơ bản từ Form
     $course_id = !empty($_POST['course_id']) ? (int)$_POST['course_id'] : null;
     $code = strtoupper(trim($_POST['code'] ?? ''));
-    $name_vn = trim($_POST['name_vn'] ?? '');
-    $name_en = trim($_POST['name_en'] ?? '');
-    $type = $_POST['module_type'] ?? 'Bắt buộc';
-    if (trim((string)$type) === '') {
-        $type = $getFirstEnumValue('modules', 'type');
+    $name = trim($_POST['name'] ?? 'Chưa có tên');
+
+    $typeInput = trim($_POST['module_type'] ?? $_POST['type'] ?? '');
+
+    if (empty($typeInput)) {
+        $type = 'Không';
+    } elseif (mb_strpos($typeInput, 'Bắt buộc') !== false) {
+        $type = 'Bắt buộc';
+    } elseif (mb_strpos($typeInput, 'Điều kiện') !== false) {
+        $type = 'Điều kiện';
+    } elseif (mb_strpos($typeInput, 'Tự chọn') !== false) {
+        $type = 'Tự chọn';
+    } else {
+        $type = 'Không'; 
     }
+
     $credits = !empty($_POST['credits']) ? (int)$_POST['credits'] : 0;
+    $credits_theory = !empty($_POST['credits_theory']) ? (int)$_POST['credits_theory'] : 0;
+    $credits_practice = !empty($_POST['credits_practice']) ? (int)$_POST['credits_practice'] : 0;
     $theory_hours = !empty($_POST['theory_hours']) ? (int)$_POST['theory_hours'] : 0;
-    $practical_hours = !empty($_POST['practice_hours']) ? (int)$_POST['practice_hours'] : 0;
+    $practical_hours = !empty($_POST['practical_hours']) ? (int)$_POST['practical_hours'] : 0;
     $total_hours = !empty($_POST['total_hours']) ? (int)$_POST['total_hours'] : ($theory_hours + $practical_hours);
     $self_study_hours = !empty($_POST['self_study_hours']) ? (int)$_POST['self_study_hours'] : 0;
 
     $target_programs = $_POST['target_programs'] ?? '';
     $expected_semester = $_POST['expected_semester'] ?? '';
     $expected_year = $_POST['expected_year'] ?? '';
+    $prerequisite_modules = $_POST['prerequisite_modules'] ?? '';
+    $parallel_modules = $_POST['parallel_modules'] ?? '';
+    $previous_modules = $_POST['previous_modules'] ?? '';
     $department_in_charge = $_POST['department_in_charge'] ?? '';
     $coordinating_board = $_POST['coordinating_board'] ?? '';
-    $faculty_in_charge = $_POST['faculty_in_charge'] ?? '';
+    $faculty_name = $_POST['faculty_in_charge'] ?? '';
+    $faculty_id = $lookupId($pdo, 'faculties_list', $faculty_name);
 
     $description = $_POST['description'] ?? '';
     $objectives = $_POST['objectives'] ?? '';
     $grading_scale = $_POST['grading_scale'] ?? '';
 
-    if (empty($code) || empty($name_vn)) {
+    if (empty($code) || empty($name)) {
         throw new Exception("Mã học phần và Tên học phần tiếng Việt không được để trống.");
     }
+
 
     // [XỬ LÝ ĐỒNG BỘ SANG BẢNG COURSES]
     // Nếu chưa có course_id, kiểm tra xem mã học phần này đã có trong danh mục chưa
@@ -93,44 +119,67 @@ try {
             $sortOrder = $getFirstId('SELECT COALESCE(MAX(sort_order), 0) + 1 FROM courses WHERE major_id = ?', [$majorId]) ?? 1;
 
             $stmtInsCourse = $pdo->prepare("
-                INSERT INTO courses (major_id, block_id, sort_order, code, name, total_hours, theory_hours, practice_hours)
+                INSERT INTO courses (major_id, block_id, sort_order, code, name, total_hours, theory_hours, practical_hours)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?)
             ");
-            $stmtInsCourse->execute([$majorId, $blockId, $sortOrder, $code, $name_vn, $total_hours, $theory_hours, $practical_hours]);
+            $stmtInsCourse->execute([$majorId, $blockId, $sortOrder, $code, $name, $total_hours, $theory_hours, $practical_hours]);
             $course_id = $pdo->lastInsertId();
         }
     } else {
         // Nếu đã chọn học phần nền có sẵn, cập nhật lại số giờ và tên theo đề cương cho đồng bộ
         $stmtUpCourse = $pdo->prepare("
             UPDATE courses
-            SET code = ?, name = ?, total_hours = ?, theory_hours = ?, practice_hours = ?
+            SET code = ?, name = ?, total_hours = ?, theory_hours = ?, practical_hours = ?
             WHERE id = ?
         ");
-        $stmtUpCourse->execute([$code, $name_vn, $total_hours, $theory_hours, $practical_hours, $course_id]);
+        $stmtUpCourse->execute([$code, $name, $total_hours, $theory_hours, $practical_hours, $course_id]);
     }
 
-    // 2. Chèn dữ liệu vào bảng chi tiết đề cương (modules)
-    $stmtModule = $pdo->prepare('
-        INSERT INTO modules (
-            course_id, code, name_vn, name_en, type, credits,
-            theory_hours, practical_hours, self_study_hours,
-            target_programs, expected_semester, expected_year,
-            department_in_charge, coordinating_board, faculty_in_charge,
-            description, objectives, grading_scale
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    ');
+    
+   
+    $stmtModule = $pdo->prepare('INSERT INTO modules (
+        course_id, code, name, type,
+        credits, credits_theory, credits_practice,
+        total_hours, theory_hours, practical_hours, self_study_hours,
+        target_programs, expected_semester, expected_year,
+        prerequisite_modules, parallel_modules, previous_modules,
+        description, objectives, grading_scale,
+        department_in_charge, coordinating_board, faculty_in_charge
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
 
     $stmtModule->execute([
-        $course_id, $code, $name_vn, $name_en, $type, $credits,
-        $theory_hours, $practical_hours, $self_study_hours,
-        $target_programs, $expected_semester, $expected_year,
-        $department_in_charge, $coordinating_board, $faculty_in_charge,
-        $description, $objectives, $grading_scale
+        $course_id,
+        $code,
+        $name,
+        $type,
+        $credits,
+        $credits_theory,
+        $credits_practice,
+        $total_hours,
+        $theory_hours,
+        $practical_hours,
+        $self_study_hours,
+        $target_programs,
+        $expected_semester,
+        $expected_year,
+        $prerequisite_modules,
+        $parallel_modules,
+        $previous_modules,
+        $description,
+        $objectives,
+        $grading_scale,
+        $department_in_charge,
+        $coordinating_board,
+        $faculty_in_charge
     ]);
+
+    // Lấy ID vừa sinh ra để tiếp tục chạy cho các luồng xử lý JSON phía sau
+    $module_id = $pdo->lastInsertId();
+    
 
     $module_id = $pdo->lastInsertId();
 
-    // 3. Giải mã dữ liệu chuỗi JSON từ Frontend chuyển lên (Đồng bộ chuẩn 100% tên biến POST)
+    // 3. Giải mã dữ liệu chuỗi JSON từ Frontend chuyển lên
     $clos_arr = json_decode($_POST['clos_json'] ?? '[]', true);
     $assessments_arr = json_decode($_POST['assessments_json'] ?? '[]', true);
     $activity_arr = json_decode($_POST['self_study_json'] ?? '[]', true);
@@ -221,7 +270,7 @@ try {
                 'content' => $content,
                 'method' => $_POST['combined_method'][$idx] ?? '',
                 'hours_theory' => $_POST['combined_theory_hours'][$idx] ?? 0,
-                'hours_practice' => $_POST['combined_practice_hours'][$idx] ?? 0,
+                'hours_practice' => $_POST['combined_practical_hours'][$idx] ?? 0,
                 'hours_self' => $_POST['combined_self_hours'][$idx] ?? 0,
                 'clos' => $_POST['combined_clos'][$idx] ?? '',
                 'facility' => $_POST['combined_facility'][$idx] ?? '',
@@ -429,9 +478,14 @@ try {
         foreach ($res_teach_arr as $idx => $r) {
             $title = trim($r['title'] ?? '');
             if ($title === '' || str_starts_with($title, '-- Chọn')) continue;
+            
+            $stmtBook = $pdo->prepare("SELECT id FROM books_catalog WHERE title = ? LIMIT 1");
+            $stmtBook->execute([$title]);
+            $book_id = $stmtBook->fetchColumn() ?: null;
+
             $stmtRes->execute([
                 $module_id, 'Tài liệu giảng dạy', ($idx + 1),
-                $title, $r['editor'] ?? '', $r['publisher'] ?? '', $r['year'] ?? '', $r['isbn'] ?? ''
+                $title, $r['editor'] ?? '', $r['publisher'] ?? '', $r['year'] ?? '', $book_id // Lưu ID vào identifier
             ]);
         }
     }
@@ -440,9 +494,15 @@ try {
         foreach ($res_self_arr as $idx => $r) {
             $title = trim($r['title'] ?? '');
             if ($title === '' || str_starts_with($title, '-- Chọn')) continue;
+
+            // Phải tra cứu ID cho sách tự học
+            $stmtBook = $pdo->prepare("SELECT id FROM books_catalog WHERE title = ? LIMIT 1");
+            $stmtBook->execute([$title]);
+            $book_id = $stmtBook->fetchColumn() ?: null;
+
             $stmtRes->execute([
                 $module_id, 'Tài liệu tự học', ($idx + 1),
-                $title, $r['editor'] ?? '', $r['publisher'] ?? '', $r['year'] ?? '', $r['isbn'] ?? ''
+                $title, $r['editor'] ?? '', $r['publisher'] ?? '', $r['year'] ?? '', $book_id
             ]);
         }
     }

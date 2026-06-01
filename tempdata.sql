@@ -1,7 +1,3 @@
--- =====================================================================
--- TEMPCTDT schema + 10 bộ dữ liệu test đầy đủ
--- =====================================================================
-
 SET NAMES utf8mb4;
 SET FOREIGN_KEY_CHECKS = 0;
 
@@ -54,7 +50,7 @@ CREATE TABLE `courses` (
   `name` VARCHAR(255) NOT NULL,
   `total_hours` INT DEFAULT 0,
   `theory_hours` INT DEFAULT 0,
-  `practice_hours` INT DEFAULT 0,
+  `practical_hours` INT DEFAULT 0,
   `sort_order` INT DEFAULT 0,
   FOREIGN KEY (`major_id`) REFERENCES `majors`(`id`) ON DELETE CASCADE,
   FOREIGN KEY (`block_id`) REFERENCES `knowledge_blocks`(`id`) ON DELETE SET NULL
@@ -69,24 +65,31 @@ CREATE TABLE `modules` (
   `id` INT AUTO_INCREMENT PRIMARY KEY,
   `course_id` INT NULL,
   `code` VARCHAR(50) NOT NULL UNIQUE,
-  `name_vn` VARCHAR(255) NOT NULL,
-  `name_en` VARCHAR(255) NULL,
-  `type` ENUM('Bắt buộc', 'Điều kiện', 'Tự chọn') NOT NULL DEFAULT 'Bắt buộc',
+  `name` VARCHAR(255) NOT NULL,
+  `type` ENUM('Không', 'Bắt buộc', 'Điều kiện', 'Tự chọn') NOT NULL DEFAULT 'Không',
   `credits` INT NOT NULL DEFAULT 0,
+  `credits_theory` INT NOT NULL DEFAULT 0,
+  `credits_practice` INT NOT NULL DEFAULT 0,
+  `total_hours` INT NOT NULL DEFAULT 0,
   `theory_hours` INT NOT NULL DEFAULT 0,
   `practical_hours` INT NOT NULL DEFAULT 0,
   `self_study_hours` INT NOT NULL DEFAULT 0,
   `target_programs` TEXT NULL,
   `expected_semester` VARCHAR(50) NULL,
   `expected_year` VARCHAR(50) NULL,
+  `prerequisite_modules` TEXT NULL,
+  `parallel_modules` TEXT NULL,
+  `previous_modules` TEXT NULL,
   `department_in_charge` VARCHAR(255) NULL,
   `coordinating_board` VARCHAR(255) NULL,
   `faculty_in_charge` VARCHAR(255) NULL,
   `description` TEXT NULL,
   `objectives` TEXT NULL,
-  `grading_scale` VARCHAR(50) NULL DEFAULT '10',
+  `grading_scale` TEXT NULL,
   `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `faculty_id` INT NULL,
+  FOREIGN KEY (`faculty_id`) REFERENCES `faculties_list`(`id`) ON DELETE SET NULL,
   FOREIGN KEY (`course_id`) REFERENCES `courses`(`id`) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
@@ -120,6 +123,8 @@ CREATE TABLE `assessments` (
   `tool` VARCHAR(255) NULL,
   `weight` DECIMAL(5,2) NOT NULL DEFAULT 0.00,
   `plo_pi` VARCHAR(255) NULL,
+  `assessment_form_id` INT NULL,
+  FOREIGN KEY (`assessment_form_id`) REFERENCES `assessment_forms`(`id`) ON DELETE SET NULL,
   FOREIGN KEY (`module_id`) REFERENCES `modules`(`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
@@ -221,7 +226,9 @@ CREATE TABLE `resources` (
   `editor` VARCHAR(255) NULL,
   `publisher` VARCHAR(255) NULL,
   `year` VARCHAR(50) NULL,
-  `identifier` VARCHAR(100) NULL,
+  `identifier` INT NULL,
+  `book_id` INT NULL,
+  FOREIGN KEY (`book_id`) REFERENCES `books_catalog`(`id`) ON DELETE SET NULL,
   FOREIGN KEY (`module_id`) REFERENCES `modules`(`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
@@ -231,7 +238,7 @@ CREATE TABLE `books_catalog` (
   `editor` VARCHAR(255) NULL,
   `publisher` VARCHAR(255) NULL,
   `year` VARCHAR(50) NULL,
-  `identifier` VARCHAR(100) NULL
+  `identifier` INT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE `faculties_list` (
@@ -276,7 +283,7 @@ INSERT INTO `faculties_list` (`id`, `name`) VALUES
 (3, 'Khoa Điều dưỡng'),
 (4, 'Khoa Khoa học cơ bản');
 
-INSERT INTO `courses` (`id`, `major_id`, `block_id`, `code`, `name`, `total_hours`, `theory_hours`, `practice_hours`, `sort_order`) VALUES
+INSERT INTO `courses` (`id`, `major_id`, `block_id`, `code`, `name`, `total_hours`, `theory_hours`, `practical_hours`, `sort_order`) VALUES
 (1, 1, 2, 'TEST001', 'Giải phẫu học đại cương', 45, 30, 15, 1),
 (2, 1, 2, 'TEST002', 'Sinh lý học đại cương', 45, 30, 15, 2),
 (3, 1, 3, 'TEST003', 'Bệnh học cơ sở', 45, 35, 10, 3),
@@ -288,17 +295,17 @@ INSERT INTO `courses` (`id`, `major_id`, `block_id`, `code`, `name`, `total_hour
 (9, 3, 7, 'TEST009', 'Chăm sóc người bệnh nội khoa', 60, 30, 30, 9),
 (10, 1, 1, 'TEST010', 'Tin học ứng dụng y học', 45, 20, 25, 10);
 
-INSERT INTO `modules` (`id`, `course_id`, `code`, `name_vn`, `name_en`, `type`, `credits`, `theory_hours`, `practical_hours`, `self_study_hours`, `target_programs`, `expected_semester`, `expected_year`, `department_in_charge`, `coordinating_board`, `faculty_in_charge`, `description`, `objectives`, `grading_scale`) VALUES
-(1, 1, 'TEST001', 'Giải phẫu học đại cương', 'General Anatomy', 'Bắt buộc', 3, 30, 15, 60, 'Sinh viên Y khoa năm 1', 'Học kỳ I', '2026-2027', 'Bộ môn Giải phẫu', 'Ban y học cơ sở', 'Khoa Y', 'Học phần cung cấp kiến thức nền tảng về cấu trúc cơ thể người.', 'Mô tả và xác định được các cấu trúc giải phẫu cơ bản.', 'Thang điểm 10'),
-(2, 2, 'TEST002', 'Sinh lý học đại cương', 'General Physiology', 'Bắt buộc', 3, 30, 15, 60, 'Sinh viên khối sức khỏe năm 1', 'Học kỳ II', '2026-2027', 'Bộ môn Sinh lý', 'Ban y học cơ sở', 'Khoa Y', 'Học phần trình bày hoạt động chức năng của cơ thể bình thường.', 'Giải thích được các cơ chế điều hòa sinh lý cơ bản.', 'Thang điểm 10'),
-(3, 3, 'TEST003', 'Bệnh học cơ sở', 'Basic Pathology', 'Bắt buộc', 3, 35, 10, 70, 'Sinh viên Y khoa năm 2', 'Học kỳ I', '2026-2027', 'Bộ môn Bệnh học', 'Ban tiền lâm sàng', 'Khoa Y', 'Học phần giới thiệu cơ chế bệnh sinh và tổn thương mô học cơ bản.', 'Phân tích được mối liên hệ giữa tổn thương và biểu hiện bệnh.', 'Thang điểm 10'),
-(4, 4, 'TEST004', 'Kỹ năng khám lâm sàng', 'Clinical Examination Skills', 'Bắt buộc', 4, 25, 35, 80, 'Sinh viên Y khoa năm 3', 'Học kỳ II', '2026-2027', 'Bộ môn Nội', 'Ban lâm sàng', 'Khoa Y', 'Học phần rèn luyện kỹ năng hỏi bệnh và khám bệnh cơ bản.', 'Thực hiện đúng quy trình khám lâm sàng cơ bản.', 'Thang điểm 10'),
-(5, 5, 'TEST005', 'Hóa dược cơ bản', 'Basic Medicinal Chemistry', 'Bắt buộc', 3, 30, 15, 60, 'Sinh viên Dược năm 2', 'Học kỳ I', '2026-2027', 'Bộ môn Hóa dược', 'Ban đào tạo Dược', 'Khoa Dược', 'Học phần cung cấp kiến thức về cấu trúc và tính chất hóa học của thuốc.', 'Phân tích được liên quan cấu trúc - tác dụng của thuốc.', 'Thang điểm 10'),
-(6, 6, 'TEST006', 'Dược lý lâm sàng', 'Clinical Pharmacology', 'Bắt buộc', 4, 45, 15, 90, 'Sinh viên Dược năm 4', 'Học kỳ II', '2026-2027', 'Bộ môn Dược lý', 'Ban đào tạo Dược', 'Khoa Dược', 'Học phần hướng dẫn sử dụng thuốc hợp lý, an toàn và hiệu quả.', 'Đề xuất được lựa chọn thuốc phù hợp tình huống lâm sàng.', 'Thang điểm 10'),
-(7, 7, 'TEST007', 'Quản lý cung ứng thuốc', 'Drug Supply Management', 'Tự chọn', 2, 20, 10, 45, 'Sinh viên Dược năm 4', 'Học kỳ I', '2026-2027', 'Bộ môn Quản lý Dược', 'Ban đào tạo Dược', 'Khoa Dược', 'Học phần giới thiệu quy trình mua sắm, bảo quản và phân phối thuốc.', 'Lập được kế hoạch cung ứng thuốc ở đơn vị y tế.', 'Thang điểm 10'),
-(8, 8, 'TEST008', 'Điều dưỡng cơ bản', 'Fundamental Nursing', 'Bắt buộc', 4, 25, 35, 80, 'Sinh viên Điều dưỡng năm 1', 'Học kỳ II', '2026-2027', 'Bộ môn Điều dưỡng cơ bản', 'Ban Điều dưỡng', 'Khoa Điều dưỡng', 'Học phần rèn luyện kỹ năng chăm sóc cơ bản và kiểm soát nhiễm khuẩn.', 'Thực hiện được các quy trình chăm sóc an toàn.', 'Thang điểm 10'),
-(9, 9, 'TEST009', 'Chăm sóc người bệnh nội khoa', 'Medical Nursing Care', 'Bắt buộc', 4, 30, 30, 90, 'Sinh viên Điều dưỡng năm 3', 'Học kỳ I', '2026-2027', 'Bộ môn Điều dưỡng nội', 'Ban Điều dưỡng', 'Khoa Điều dưỡng', 'Học phần hướng dẫn chăm sóc người bệnh mắc bệnh nội khoa thường gặp.', 'Xây dựng được kế hoạch chăm sóc người bệnh nội khoa.', 'Thang điểm 10'),
-(10, 10, 'TEST010', 'Tin học ứng dụng y học', 'Applied Medical Informatics', 'Tự chọn', 3, 20, 25, 60, 'Sinh viên khối sức khỏe', 'Học kỳ II', '2026-2027', 'Trung tâm Công nghệ thông tin', 'Ban liên khoa', 'Khoa Khoa học cơ bản', 'Học phần rèn luyện kỹ năng nhập liệu, xử lý dữ liệu và tra cứu y văn.', 'Sử dụng được công cụ số trong học tập và nghiên cứu y học.', 'Thang điểm 10');
+INSERT INTO `modules` (`id`, `course_id`, `code`, `name`, `type`, `credits`, `credits_theory`, `credits_practice`, `total_hours`, `theory_hours`, `practical_hours`, `self_study_hours`, `target_programs`, `expected_semester`, `expected_year`, `prerequisite_modules`, `parallel_modules`, `previous_modules`, `department_in_charge`, `coordinating_board`, `faculty_in_charge`, `description`, `objectives`, `grading_scale`) VALUES
+(1, 1, 'TEST001', 'Giải phẫu học đại cương', 'Bắt buộc', 3, 2, 1, 45, 30, 15, 60, 'Sinh viên Y khoa năm 1', 'Học kỳ I', '2026-2027', '', '', '', 'Bộ môn Giải phẫu', 'Ban y học cơ sở', 'Khoa Y', 'Học phần cung cấp kiến thức nền tảng về cấu trúc cơ thể người.', 'Mô tả và xác định được các cấu trúc giải phẫu cơ bản.', 'Thang điểm 10'),
+(2, 2, 'TEST002', 'Sinh lý học đại cương', 'Bắt buộc', 3, 2, 1, 45, 30, 15, 60, 'Sinh viên khối sức khỏe năm 1', 'Học kỳ II', '2026-2027', '', '', '', 'Bộ môn Sinh lý', 'Ban y học cơ sở', 'Khoa Y', 'Học phần trình bày hoạt động chức năng của cơ thể bình thường.', 'Giải thích được các cơ chế điều hòa sinh lý cơ bản.', 'Thang điểm 10'),
+(3, 3, 'TEST003', 'Bệnh học cơ sở', 'Bắt buộc', 3, 2, 1, 45, 35, 10, 70, 'Sinh viên Y khoa năm 2', 'Học kỳ I', '2026-2027', '', '', '', 'Bộ môn Bệnh học', 'Ban tiền lâm sàng', 'Khoa Y', 'Học phần giới thiệu cơ chế bệnh sinh và tổn thương mô học cơ bản.', 'Phân tích được mối liên hệ giữa tổn thương và biểu hiện bệnh.', 'Thang điểm 10'),
+(4, 4, 'TEST004', 'Kỹ năng khám lâm sàng', 'Bắt buộc', 4, 2, 2, 60, 25, 35, 80, 'Sinh viên Y khoa năm 3', 'Học kỳ II', '2026-2027', '', '', '', 'Bộ môn Nội', 'Ban lâm sàng', 'Khoa Y', 'Học phần rèn luyện kỹ năng hỏi bệnh và khám bệnh cơ bản.', 'Thực hiện đúng quy trình khám lâm sàng cơ bản.', 'Thang điểm 10'),
+(5, 5, 'TEST005', 'Hóa dược cơ bản', 'Bắt buộc', 3, 2, 1, 45, 30, 15, 60, 'Sinh viên Dược năm 2', 'Học kỳ I', '2026-2027', '', '', '', 'Bộ môn Hóa dược', 'Ban đào tạo Dược', 'Khoa Dược', 'Học phần cung cấp kiến thức về cấu trúc và tính chất hóa học của thuốc.', 'Phân tích được liên quan cấu trúc - tác dụng của thuốc.', 'Thang điểm 10'),
+(6, 6, 'TEST006', 'Dược lý lâm sàng','Bắt buộc', 4, 3, 1, 60, 45, 15, 90, 'Sinh viên Dược năm 4', 'Học kỳ II', '2026-2027', '', '', '', 'Bộ môn Dược lý', 'Ban đào tạo Dược', 'Khoa Dược', 'Học phần hướng dẫn sử dụng thuốc hợp lý, an toàn và hiệu quả.', 'Đề xuất được lựa chọn thuốc phù hợp tình huống lâm sàng.', 'Thang điểm 10'),
+(7, 7, 'TEST007', 'Quản lý cung ứng thuốc', 'Tự chọn', 2, 1, 1, 30, 20, 10, 45, 'Sinh viên Dược năm 4', 'Học kỳ I', '2026-2027', '', '', '', 'Bộ môn Quản lý Dược', 'Ban đào tạo Dược', 'Khoa Dược', 'Học phần giới thiệu quy trình mua sắm, bảo quản và phân phối thuốc.', 'Lập được kế hoạch cung ứng thuốc ở đơn vị y tế.', 'Thang điểm 10'),
+(8, 8, 'TEST008', 'Điều dưỡng cơ bản', 'Bắt buộc', 4, 2, 2, 60, 25, 35, 80, 'Sinh viên Điều dưỡng năm 1', 'Học kỳ II', '2026-2027', '', '', '', 'Bộ môn Điều dưỡng cơ bản', 'Ban Điều dưỡng', 'Khoa Điều dưỡng', 'Học phần rèn luyện kỹ năng chăm sóc cơ bản và kiểm soát nhiễm khuẩn.', 'Thực hiện được các quy trình chăm sóc an toàn.', 'Thang điểm 10'),
+(9, 9, 'TEST009', 'Chăm sóc người bệnh nội khoa', 'Bắt buộc', 4, 2, 2, 60, 30, 30, 90, 'Sinh viên Điều dưỡng năm 3', 'Học kỳ I', '2026-2027', '', '', '', 'Bộ môn Điều dưỡng nội', 'Ban Điều dưỡng', 'Khoa Điều dưỡng', 'Học phần hướng dẫn chăm sóc người bệnh mắc bệnh nội khoa thường gặp.', 'Xây dựng được kế hoạch chăm sóc người bệnh nội khoa.', 'Thang điểm 10'),
+(10, 10, 'TEST010', 'Tin học ứng dụng y học', 'Tự chọn', 3, 1, 2, 45, 20, 25, 60, 'Sinh viên khối sức khỏe', 'Học kỳ II', '2026-2027', '', '', '', 'Trung tâm Công nghệ thông tin', 'Ban liên khoa', 'Khoa Khoa học cơ bản', 'Học phần rèn luyện kỹ năng nhập liệu, xử lý dữ liệu và tra cứu y văn.', 'Sử dụng được công cụ số trong học tập và nghiên cứu y học.', 'Thang điểm 10');
 
 INSERT INTO `module_relationships` (`module_id`, `related_module_id`, `relation_type`) VALUES
 (2, 1, 'Học trước'), (3, 2, 'Học trước'), (4, 3, 'Song hành'), (6, 5, 'Học trước'), (9, 8, 'Học trước');
@@ -391,27 +398,37 @@ INSERT INTO `combined_topic_clos` (`combined_topic_id`, `clo_id`)
 SELECT cb.id, c.id FROM combined_topics cb JOIN clos c ON c.module_id = cb.module_id;
 
 INSERT INTO `resources` (`module_id`, `resource_type`, `sort_order`, `title`, `editor`, `publisher`, `year`, `identifier`) VALUES
-(1,'Tài liệu giảng dạy',1,'Giáo trình Giải phẫu học đại cương','Nguyễn Văn A','NXB Y học','2025','TEST-RES-001'),(1,'Tài liệu tự học',1,'Atlas thực hành giải phẫu','Trần Thị B','NXB Y học','2024','TEST-RES-002'),
-(2,'Tài liệu giảng dạy',1,'Giáo trình Sinh lý học đại cương','Nguyễn Văn A','NXB Y học','2025','TEST-RES-003'),(2,'Tài liệu tự học',1,'Bài tập sinh lý học','Trần Thị B','NXB Y học','2024','TEST-RES-004'),
-(3,'Tài liệu giảng dạy',1,'Giáo trình Bệnh học cơ sở','Nguyễn Văn A','NXB Y học','2025','TEST-RES-005'),(3,'Tài liệu tự học',1,'Tập tình huống bệnh học','Trần Thị B','NXB Y học','2024','TEST-RES-006'),
-(4,'Tài liệu giảng dạy',1,'Giáo trình Kỹ năng khám lâm sàng','Nguyễn Văn A','NXB Y học','2025','TEST-RES-007'),(4,'Tài liệu tự học',1,'Bảng kiểm khám lâm sàng','Trần Thị B','NXB Y học','2024','TEST-RES-008'),
-(5,'Tài liệu giảng dạy',1,'Giáo trình Hóa dược cơ bản','Nguyễn Văn A','NXB Y học','2025','TEST-RES-009'),(5,'Tài liệu tự học',1,'Bài tập hóa dược','Trần Thị B','NXB Y học','2024','TEST-RES-010'),
-(6,'Tài liệu giảng dạy',1,'Giáo trình Dược lý lâm sàng','Nguyễn Văn A','NXB Y học','2025','TEST-RES-011'),(6,'Tài liệu tự học',1,'Case study dược lý','Trần Thị B','NXB Y học','2024','TEST-RES-012'),
-(7,'Tài liệu giảng dạy',1,'Giáo trình Quản lý cung ứng thuốc','Nguyễn Văn A','NXB Y học','2025','TEST-RES-013'),(7,'Tài liệu tự học',1,'Bài tập quản lý tồn kho thuốc','Trần Thị B','NXB Y học','2024','TEST-RES-014'),
-(8,'Tài liệu giảng dạy',1,'Giáo trình Điều dưỡng cơ bản','Nguyễn Văn A','NXB Y học','2025','TEST-RES-015'),(8,'Tài liệu tự học',1,'Bảng kiểm kỹ thuật điều dưỡng','Trần Thị B','NXB Y học','2024','TEST-RES-016'),
-(9,'Tài liệu giảng dạy',1,'Giáo trình Chăm sóc nội khoa','Nguyễn Văn A','NXB Y học','2025','TEST-RES-017'),(9,'Tài liệu tự học',1,'Kế hoạch chăm sóc mẫu','Trần Thị B','NXB Y học','2024','TEST-RES-018'),
-(10,'Tài liệu giảng dạy',1,'Giáo trình Tin học ứng dụng y học','Nguyễn Văn A','NXB Y học','2025','TEST-RES-019'),(10,'Tài liệu tự học',1,'Bài tập xử lý dữ liệu y học','Trần Thị B','NXB Y học','2024','TEST-RES-020');
+(1,'Tài liệu giảng dạy',1,'Giáo trình Giải phẫu học đại cương','Nguyễn Văn A','NXB Y học','2025', 1),
+(1,'Tài liệu tự học',1,'Atlas thực hành giải phẫu','Trần Thị B','NXB Y học','2024', NULL),
+(2,'Tài liệu giảng dạy',1,'Giáo trình Sinh lý học đại cương','Nguyễn Văn A','NXB Y học','2025', 2),
+(2,'Tài liệu tự học',1,'Bài tập sinh lý học','Trần Thị B','NXB Y học','2024', NULL),
+(3,'Tài liệu giảng dạy',1,'Giáo trình Bệnh học cơ sở','Nguyễn Văn A','NXB Y học','2025', 3),
+(3,'Tài liệu tự học',1,'Tập tình huống bệnh học','Trần Thị B','NXB Y học','2024', NULL),
+(4,'Tài liệu giảng dạy',1,'Giáo trình Kỹ năng khám lâm sàng','Nguyễn Văn A','NXB Y học','2025', 4),
+(4,'Tài liệu tự học',1,'Bảng kiểm khám lâm sàng','Trần Thị B','NXB Y học','2024', NULL),
+(5,'Tài liệu giảng dạy',1,'Giáo trình Hóa dược cơ bản','Nguyễn Văn A','NXB Y học','2025', 5),
+(5,'Tài liệu tự học',1,'Bài tập hóa dược','Trần Thị B','NXB Y học','2024', NULL),
+(6,'Tài liệu giảng dạy',1,'Giáo trình Dược lý lâm sàng','Nguyễn Văn A','NXB Y học','2025', 6),
+(6,'Tài liệu tự học',1,'Case study dược lý','Trần Thị B','NXB Y học','2024', NULL),
+(7,'Tài liệu giảng dạy',1,'Giáo trình Quản lý cung ứng thuốc','Nguyễn Văn A','NXB Y học','2025', 7),
+(7,'Tài liệu tự học',1,'Bài tập quản lý tồn kho thuốc','Trần Thị B','NXB Y học','2024', NULL),
+(8,'Tài liệu giảng dạy',1,'Giáo trình Điều dưỡng cơ bản','Nguyễn Văn A','NXB Y học','2025', 8),
+(8,'Tài liệu tự học',1,'Bảng kiểm kỹ thuật điều dưỡng','Trần Thị B','NXB Y học','2024', NULL),
+(9,'Tài liệu giảng dạy',1,'Giáo trình Chăm sóc nội khoa','Nguyễn Văn A','NXB Y học','2025', 9),
+(9,'Tài liệu tự học',1,'Kế hoạch chăm sóc mẫu','Trần Thị B','NXB Y học','2024', NULL),
+(10,'Tài liệu giảng dạy',1,'Giáo trình Tin học ứng dụng y học','Nguyễn Văn A','NXB Y học','2025', 10),
+(10,'Tài liệu tự học',1,'Bài tập xử lý dữ liệu y học','Trần Thị B','NXB Y học','2024', NULL);
 
 INSERT INTO `books_catalog` (`id`, `title`, `editor`, `publisher`, `year`, `identifier`) VALUES
-(1,'Giáo trình Giải phẫu học đại cương','Nguyễn Văn A','NXB Y học','2025','TEST-RES-001'),
-(2,'Giáo trình Sinh lý học đại cương','Nguyễn Văn A','NXB Y học','2025','TEST-RES-003'),
-(3,'Giáo trình Bệnh học cơ sở','Nguyễn Văn A','NXB Y học','2025','TEST-RES-005'),
-(4,'Giáo trình Kỹ năng khám lâm sàng','Nguyễn Văn A','NXB Y học','2025','TEST-RES-007'),
-(5,'Giáo trình Hóa dược cơ bản','Nguyễn Văn A','NXB Y học','2025','TEST-RES-009'),
-(6,'Giáo trình Dược lý lâm sàng','Nguyễn Văn A','NXB Y học','2025','TEST-RES-011'),
-(7,'Giáo trình Quản lý cung ứng thuốc','Nguyễn Văn A','NXB Y học','2025','TEST-RES-013'),
-(8,'Giáo trình Điều dưỡng cơ bản','Nguyễn Văn A','NXB Y học','2025','TEST-RES-015'),
-(9,'Giáo trình Chăm sóc nội khoa','Nguyễn Văn A','NXB Y học','2025','TEST-RES-017'),
-(10,'Giáo trình Tin học ứng dụng y học','Nguyễn Văn A','NXB Y học','2025','TEST-RES-019');
+(1,'Giáo trình Giải phẫu học đại cương','Nguyễn Văn A','NXB Y học','2025', 1),
+(2,'Giáo trình Sinh lý học đại cương','Nguyễn Văn A','NXB Y học','2025', 2),
+(3,'Giáo trình Bệnh học cơ sở','Nguyễn Văn A','NXB Y học','2025', 3),
+(4,'Giáo trình Kỹ năng khám lâm sàng','Nguyễn Văn A','NXB Y học','2025', 4),
+(5,'Giáo trình Hóa dược cơ bản','Nguyễn Văn A','NXB Y học','2025', 5),
+(6,'Giáo trình Dược lý lâm sàng','Nguyễn Văn A','NXB Y học','2025', 6),
+(7,'Giáo trình Quản lý cung ứng thuốc','Nguyễn Văn A','NXB Y học','2025', 7),
+(8,'Giáo trình Điều dưỡng cơ bản','Nguyễn Văn A','NXB Y học','2025', 8),
+(9,'Giáo trình Chăm sóc nội khoa','Nguyễn Văn A','NXB Y học','2025', 9),
+(10,'Giáo trình Tin học ứng dụng y học','Nguyễn Văn A','NXB Y học','2025', 10);
 
 SET FOREIGN_KEY_CHECKS = 1;
