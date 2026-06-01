@@ -1,28 +1,67 @@
 <?php
 require 'db.php';
 
-// Handle POST requests
+$error_msg = '';
+$success_msg = '';
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    if (isset($_POST['add'])) {
-        $stmt = $pdo->prepare('INSERT INTO knowledge_blocks (major_id, name, parent_id) VALUES (?, ?, ?)');
-        $pid = $_POST['parent_id'] ?: null;
-        $stmt->execute([$_POST['major_id'], $_POST['name'], $pid]);
-        header('Location: blocks.php');
-        exit;
+    try {
+        if (isset($_POST['add'])) {
+            $major_id = !empty($_POST['major_id']) ? (int)$_POST['major_id'] : null;
+            $name = trim($_POST['name'] ?? '');
+            $pid = !empty($_POST['parent_id']) ? (int)$_POST['parent_id'] : null;
+
+            if (!$major_id) {
+                throw new Exception('Vui long chon nganh truoc khi them khoi kien thuc.');
+            }
+
+            if ($name === '') {
+                throw new Exception('Ten khoi kien thuc khong duoc de trong.');
+            }
+
+            $stmtMajor = $pdo->prepare('SELECT COUNT(*) FROM majors WHERE id = ?');
+            $stmtMajor->execute([$major_id]);
+            if ((int)$stmtMajor->fetchColumn() === 0) {
+                throw new Exception('Nganh duoc chon khong ton tai.');
+            }
+
+            if ($pid !== null) {
+                $stmtParent = $pdo->prepare('SELECT COUNT(*) FROM knowledge_blocks WHERE id = ? AND major_id = ?');
+                $stmtParent->execute([$pid, $major_id]);
+                if ((int)$stmtParent->fetchColumn() === 0) {
+                    throw new Exception('Khoi cha phai thuoc cung nganh voi khoi dang them.');
+                }
+            }
+
+            $stmt = $pdo->prepare('INSERT INTO knowledge_blocks (major_id, name, parent_id) VALUES (?, ?, ?)');
+            $stmt->execute([$major_id, $name, $pid]);
+            header('Location: blocks.php?added=1');
+            exit;
+        }
+
+        if (isset($_POST['delete'])) {
+            $stmt = $pdo->prepare('DELETE FROM knowledge_blocks WHERE id = ?');
+            $stmt->execute([(int)$_POST['delete']]);
+            header('Location: blocks.php?deleted=1');
+            exit;
+        }
+    } catch (Exception $e) {
+        $error_msg = $e->getMessage();
     }
-    if (isset($_POST['delete'])) {
-        $stmt = $pdo->prepare('DELETE FROM knowledge_blocks WHERE id = ?');
-        $stmt->execute([$_POST['delete']]);
-        header('Location: blocks.php');
-        exit;
-    }
+}
+
+if (isset($_GET['added'])) {
+    $success_msg = 'Da them khoi kien thuc.';
+} elseif (isset($_GET['deleted'])) {
+    $success_msg = 'Da xoa khoi kien thuc.';
 }
 
 // Fetch data
 $majors = $pdo->query('SELECT * FROM majors ORDER BY name')->fetchAll(PDO::FETCH_ASSOC);
 $blocks = $pdo->query(
-    'SELECT b.*, m.name as major_name FROM knowledge_blocks b ' .
+    'SELECT b.*, m.name as major_name, p.name as parent_name FROM knowledge_blocks b ' .
     'JOIN majors m ON b.major_id = m.id ' .
+    'LEFT JOIN knowledge_blocks p ON b.parent_id = p.id ' .
     'ORDER BY m.name, b.parent_id, b.name'
 )->fetchAll(PDO::FETCH_ASSOC);
 ?>
@@ -55,20 +94,27 @@ $blocks = $pdo->query(
         <h2 class="text-center main-title">Khối kiến thức</h2>
         
 
+        <!-- <?php if ($error_msg): ?>
+            <div class="alert alert-danger"><?= h($error_msg) ?></div>
+        <?php endif; ?>
+        <?php if ($success_msg): ?>
+            <div class="alert alert-success"><?= h($success_msg) ?></div>
+        <?php endif; ?> -->
+
         <div class="section">
-            <form method="psost" class="row-input">
-                <select name="major_id" required>
+            <form method="post" class="row-input">
+                <select name="major_id" id="majorSelect" required>
                     <option value="">Chọn ngành</option>
                     <?php foreach ($majors as $m): ?>
                         <option value="<?= h($m['id']) ?>"><?= h($m['name']) ?></option>
                     <?php endforeach; ?>
                 </select>
                 <input name="name" placeholder="Tên khối" required>
-                <select name="parent_id">
+                <select name="parent_id" id="parentSelect">
                     <option value="">(Không có cha)</option>
                     <?php foreach ($blocks as $b): ?>
                         <?php if (!$b['parent_id']): ?>
-                            <option value="<?= h($b['id']) ?>">
+                            <option value="<?= h($b['id']) ?>" data-major-id="<?= h($b['major_id']) ?>">
                                 <?= h($b['major_name']) ?> - <?= h($b['name']) ?>
                             </option>
                         <?php endif; ?>
@@ -94,7 +140,7 @@ $blocks = $pdo->query(
                             <td><?= h($b['id']) ?></td>
                             <td><?= h($b['major_name']) ?></td>
                             <td><?= h($b['name']) ?></td>
-                            <td><?= h($b['parent_id'] ?: '') ?></td>
+                            <td><?= h($b['parent_name'] ?: '') ?></td>
                             <td>
                                 <form method="post" style="margin: 0;">
                                     <button class="button secondary" name="delete" value="<?= h($b['id']) ?>">
@@ -110,5 +156,36 @@ $blocks = $pdo->query(
             <?php endif; ?>
         </div>
     </div>
+    <script>
+        const majorSelect = document.getElementById('majorSelect');
+        const parentSelect = document.getElementById('parentSelect');
+        const parentOptions = Array.from(parentSelect.options).map(option => ({
+            value: option.value,
+            text: option.text,
+            majorId: option.dataset.majorId || ''
+        }));
+
+        function filterParentBlocks() {
+            const selectedMajorId = majorSelect.value;
+            parentSelect.innerHTML = '';
+
+            parentOptions.forEach(optionData => {
+                if (optionData.value && optionData.majorId !== selectedMajorId) {
+                    return;
+                }
+
+                const option = document.createElement('option');
+                option.value = optionData.value;
+                option.text = optionData.text;
+                if (optionData.majorId) {
+                    option.dataset.majorId = optionData.majorId;
+                }
+                parentSelect.appendChild(option);
+            });
+        }
+
+        majorSelect.addEventListener('change', filterParentBlocks);
+        filterParentBlocks();
+    </script>
 </body>
 </html>
