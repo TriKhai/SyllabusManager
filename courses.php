@@ -100,6 +100,24 @@ try {
         .sub-section-title { font-weight: 600; color: #2c3e50; margin: 0; }
         .table th { background-color: #f8f9fa; color: #333; font-weight: 600; text-align: center; vertical-align: middle; font-size: 14px; }
         .form-helper { font-size: 12px; color: #6c757d; display: block; margin-top: 4px; }
+
+        .sortable {
+            cursor: pointer;
+            user-select: none;
+            transition: background .2s;
+        }
+
+        .sortable:hover {
+            background: #e9ecef;
+        }
+
+        .sortable span {
+            display: inline-block;
+            margin-left: 4px;
+            color: #6c757d;
+            font-size: 14px;
+            font-weight: bold;
+        }
     </style>
 </head>
 <body>
@@ -144,13 +162,29 @@ try {
             <p><button class="button" onclick="window.print()">In</button></p>
 
             <?php if ($courses): ?>
-                <table class="table">
+                <table class="table" id="courseTable">
                     <thead>
                         <tr>
-                            <th>STT</th><th>Ngành</th><th>Khối</th>
-                            <!-- <th>STT</th> -->
-                            <th>Mã</th><th>Tên</th>
-                            <th>Tổng</th><th>LT</th><th>TH</th><th style="width:160px; text-align:center;">Thao tác</th>
+                            <th onclick="sortTable(0)" class="sortable">
+                                STT <span id="icon-0">⇅</span>
+                            </th>
+                            <th onclick="sortTable(1)" class="sortable">
+                                Ngành <span id="icon-1">⇅</span>
+                            </th>
+                            <th onclick="sortTable(2)" class="sortable">
+                                Khối <span id="icon-2">⇅</span>
+                            </th>
+                            <th onclick="sortTable(3)" class="sortable">
+                                Mã <span id="icon-3">⇅</span>
+                            </th>
+
+                            <th onclick="sortTable(4)" class="sortable">
+                                Tên <span id="icon-4">⇅</span>
+                            </th>
+                            <th>Tổng</th>
+                            <th>LT</th>
+                            <th>TH</th>
+                            <th style="width:160px; text-align:center;">Thao tác</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -159,7 +193,6 @@ try {
                                 <td><?= h($c['id']) ?></td>
                                 <td><?= h($c['major_name']) ?></td>
                                 <td><?= h($c['block_name'] ?: '(Chưa phân khối)') ?></td>
-                                <!-- <td><?= h($c['sort_order']) ?></td> -->
                                 <td><?= h($c['code']) ?></td>
                                 <td><?= h($c['name']) ?></td>
                                 <td><?= h($c['total_hours']) ?></td>
@@ -217,6 +250,76 @@ try {
             width: '100%'
           });
         });
+
+
+        // sort
+        const originalRows = Array.from(
+            document.querySelector("#courseTable tbody").rows
+        );
+
+        let sortState = {};
+
+        function sortTable(columnIndex) {
+            const tbody = document.querySelector("#courseTable tbody");
+            const rows = Array.from(tbody.rows);
+
+            if (!(columnIndex in sortState)) {
+                sortState[columnIndex] = 0;
+            }
+
+            sortState[columnIndex] = (sortState[columnIndex] + 1) % 3;
+            const state = sortState[columnIndex];
+
+            // Reset icon tất cả cột
+            document.querySelectorAll('[id^="icon-"]').forEach(icon => {
+                icon.textContent = '⇅';
+            });
+
+            // Cập nhật icon cột đang sort
+            const icon = document.getElementById(`icon-${columnIndex}`);
+
+            if (state === 1) {
+                icon.textContent = '▲';
+            } else if (state === 2) {
+                icon.textContent = '▼';
+            } else {
+                icon.textContent = '⇅';
+            }
+
+            if (state === 0) {
+                tbody.innerHTML = '';
+
+                originalRows.forEach(row => {
+                    tbody.appendChild(row);
+                });
+
+                return;
+            }
+
+            rows.sort((a, b) => {
+                let x = a.cells[columnIndex].innerText.trim();
+                let y = b.cells[columnIndex].innerText.trim();
+
+                const nx = parseFloat(x);
+                const ny = parseFloat(y);
+
+                let result;
+
+                if (!isNaN(nx) && !isNaN(ny)) {
+                    result = nx - ny;
+                } else {
+                    result = x.localeCompare(y, 'vi');
+                }
+
+                return state === 1 ? result : -result;
+            });
+
+            tbody.innerHTML = '';
+
+            rows.forEach(row => {
+                tbody.appendChild(row);
+            });
+        }
     </script>
 </body>
 </html>

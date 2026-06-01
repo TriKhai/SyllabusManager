@@ -56,8 +56,8 @@ $majors = $pdo->query('SELECT * FROM majors ORDER BY name')->fetchAll(PDO::FETCH
                 />
             </div>
             <?php if ($majors): ?>
-                <table class="table table-bordered align-middle">
-                    <thead>
+                <table class="table table-bordered align-middle table-hover">
+                    <thead class="">
                     <tr >
                         <th >ID</th>
                         <th>Tên</th>
