@@ -1,12 +1,68 @@
-body{font-family:Arial,Helvetica,sans-serif;margin:20px;background:#f8f9fb}
-.container{max-width:1100px;margin:0 auto;background:#fff;padding:20px;border-radius:6px;box-shadow:0 2px 8px rgba(0,0,0,0.05)}
-h1{margin-top:0}
-.section{margin-bottom:20px}
-.table{width:100%;border-collapse:collapse;margin-top:8px}
-.table th,.table td{border:1px solid #ddd;padding:6px}
-.add-btn{margin-top:8px}
-.row-input{display:flex;gap:8px;margin-bottom:6px}
-.row-input input,.row-input select{flex:1;padding:6px}
-.small{width:120px}
-.button{padding:8px 12px;border:none;background:#0b5ed7;color:#fff;border-radius:4px;cursor:pointer}
-.button.secondary{background:#6c757d}
+body {
+    font-family: Arial, Helvetica, sans-serif;
+    margin: 20px;
+    background: #f8f9fb
+}
+
+.container {
+    max-width: 1100px;
+    margin: 0 auto;
+    background: #fff;
+    padding: 20px;
+    border-radius: 6px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05)
+}
+
+h1 {
+    margin-top: 0
+}
+
+.section {
+    margin-bottom: 20px
+}
+
+.table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 8px
+}
+
+.table th,
+.table td {
+    border: 1px solid #ddd;
+    padding: 6px
+}
+
+.add-btn {
+    margin-top: 8px
+}
+
+.row-input {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 6px
+}
+
+.row-input input,
+.row-input select {
+    flex: 1;
+    padding: 6px
+}
+
+.small {
+    width: 120px
+}
+
+.button {
+    padding: 8px 12px;
+    border: none;
+    background: #0b5ed7;
+    color: #fff;
+    border-radius: 4px;
+    cursor: pointer
+}
+
+.button.secondary {
+    background: #6c757d
+}
+

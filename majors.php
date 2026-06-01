@@ -20,52 +20,90 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 // Fetch majors
 $majors = $pdo->query('SELECT * FROM majors ORDER BY name')->fetchAll(PDO::FETCH_ASSOC);
 ?>
+
 <!doctype html>
 <html>
 <head>
     <meta charset="utf-8">
     <title>Quản lý ngành đào tạo</title>
     <link rel="stylesheet" href="assets/style.css">
+    <link rel="stylesheet" href="assets/majors.css">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+    
 </head>
 <body>
-    <div class="container">
-        <h1>Ngành đào tạo</h1>
+    <div class="container syllabus-container">
         <p><a href="index.php">Về form module</a></p>
+        <h2 class="text-center main-title">Ngành đào tạo</h2>
 
         <div class="section">
+            <div class="section-title">Thêm ngành</div>
+            
             <form method="post" class="row-input">
-                <input name="name" placeholder="Tên ngành" required>
-                <button class="button" name="add">Thêm</button>
+                <input name="name" placeholder="Tên ngành" required>                    <button class="button" name="add">Thêm</button>
             </form>
         </div>
 
         <div class="section">
-            <h3>Danh sách ngành</h3>
+            <div class="section-title">DANH SÁCH NGÀNH</div>
+            <div>
+                <input
+                    type="text"
+                    id="searchMajor"
+                    class="search_input"
+                    placeholder="Tìm ngành ..."
+                />
+            </div>
             <?php if ($majors): ?>
-                <table class="table">
-                    <tr>
-                        <th>ID</th>
+                <table class="table table-bordered align-middle">
+                    <thead>
+                    <tr >
+                        <th >ID</th>
                         <th>Tên</th>
                         <th></th>
                     </tr>
-                    <?php foreach ($majors as $m): ?>
-                        <tr>
-                            <td><?= h($m['id']) ?></td>
-                            <td><?= h($m['name']) ?></td>
-                            <td>
-                                <form method="post" style="margin: 0;">
-                                    <button class="button secondary" name="delete" value="<?= h($m['id']) ?>">
-                                        Xóa
-                                    </button>
-                                </form>
-                            </td>
-                        </tr>
-                    <?php endforeach; ?>
-                </table>
+                    </thead>
+                        <tbody id="majorTable">
+                            <?php foreach ($majors as $m): ?>
+                                <tr>
+                                    <td><?= h($m['id']) ?></td>
+                                    <td><?= h($m['name']) ?></td>
+                                    <td>
+                                        <form method="post" style="margin: 0;">
+                                            <button class="button danger button_del" name="delete" value="<?= h($m['id']) ?>">
+                                                Xóa
+                                            </button>
+                                        </form>
+                                    </td>
+                                </tr>
+                            <?php endforeach; ?>
+                        </tbody>
+                    </table>
             <?php else: ?>
                 <p>Chưa có ngành nào.</p>
             <?php endif; ?>
         </div>
     </div>
 </body>
+
+<script>
+    const searchInput = document.getElementById('searchMajor');
+    searchInput.addEventListener('keyup', function() {
+        const keyword = this.value.toLowerCase();
+        const rows = document.querySelectorAll('#majorTable tr');
+        rows.forEach(row => {
+
+            const majorName = row.children[1].textContent.toLowerCase();
+
+            if (majorName.includes(keyword)) {
+                row.style.display = '';
+            } else {
+                row.style.display = 'none';
+            }
+
+        });
+    })
+</script>
+
 </html>

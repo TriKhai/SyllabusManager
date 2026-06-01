@@ -40,7 +40,7 @@ if($course_id){
         .section-title { background: #1a446c; color: #ffffff; padding: 10px 15px; font-weight: 600; text-transform: uppercase; margin-top: 35px; margin-bottom: 20px; border-radius: 4px; }
         .sub-section-header { display: flex; justify-content: space-between; align-items: center; margin-top: 25px; margin-bottom: 15px; border-left: 4px solid #3498db; padding-left: 10px; }
         .sub-section-title { font-weight: 600; color: #2c3e50; margin: 0; }
-        .table th { background-color: #f8f9fa; color: #333; font-weighSt: 600; text-align: center; vertical-align: middle; font-size: 14px; }
+        .table th { background-color: #f8f9fa; color: #333; font-weight: 600; text-align: center; vertical-align: middle; font-size: 14px; }
         .form-helper { font-size: 12px; color: #6c757d; display: block; margin-top: 4px; }
     </style>
 </head>
