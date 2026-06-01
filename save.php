@@ -88,7 +88,8 @@ try {
     $previous_modules = $_POST['previous_modules'] ?? '';
     $department_in_charge = $_POST['department_in_charge'] ?? '';
     $coordinating_board = $_POST['coordinating_board'] ?? '';
-    $faculty_name = $_POST['faculty_in_charge'] ?? '';
+    $faculty_in_charge = $_POST['faculty_in_charge'] ?? '';
+    $faculty_name = $faculty_in_charge;
     $faculty_id = $lookupId($pdo, 'faculties_list', $faculty_name);
 
     $description = $_POST['description'] ?? '';

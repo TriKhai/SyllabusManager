@@ -30,17 +30,17 @@ try {
                 $sort_order = !empty($_POST['sort_order']) ? (int)$_POST['sort_order'] : 0;
                 $total_hours = !empty($_POST['total_hours']) ? (int)$_POST['total_hours'] : 0;
                 $theory_hours = !empty($_POST['theory_hours']) ? (int)$_POST['theory_hours'] : 0;
-                $practice_hours = !empty($_POST['practice_hours']) ? (int)$_POST['practice_hours'] : 0;
+                $practical_hours = !empty($_POST['practical_hours']) ? (int)$_POST['practical_hours'] : 0;
 
                 // 3. Thực thi câu lệnh chuẩn bị an toàn chống SQL Injection
                 $stmt = $pdo->prepare(
-                    'INSERT INTO courses (major_id, block_id, sort_order, code, name, total_hours, theory_hours, practice_hours) ' .
+                    'INSERT INTO courses (major_id, block_id, sort_order, code, name, total_hours, theory_hours, practical_hours) ' .
                     'VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
                 );
 
                 $stmt->execute([
                     $major_id, $blk, $sort_order, $code,
-                    $name, $total_hours, $theory_hours, $practice_hours
+                    $name, $total_hours, $theory_hours, $practical_hours
                 ]);
 
                 header('Location: courses.php');
@@ -123,7 +123,7 @@ try {
                 <input name="name" placeholder="Tên" required>
                 <input class="small" name="total_hours" placeholder="Tổng tiết">
                 <input class="small" name="theory_hours" placeholder="LT">
-                <input class="small" name="practice_hours" placeholder="TH">
+                <input class="small" name="practical_hours" placeholder="TH">
                 <button class="button" name="add" type="submit">Thêm</button>
             </form>
         </div>
@@ -151,7 +151,7 @@ try {
                                 <td><?= h($c['name']) ?></td>
                                 <td><?= h($c['total_hours']) ?></td>
                                 <td><?= h($c['theory_hours']) ?></td>
-                                <td><?= h($c['practice_hours']) ?></td>
+                                <td><?= h($c['practical_hours']) ?></td>
                                 <td style="text-align: center;">
                                     <a href="index.php?course_id=<?= h($c['id']) ?>" class="btn-action btn-edit">Biên soạn</a>
                                     <form method="post" style="display: inline; margin: 0;" onsubmit="return confirm('Xóa học phần này?');">
