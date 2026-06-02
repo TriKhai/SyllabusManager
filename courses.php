@@ -147,7 +147,9 @@ try {
                 <table class="table">
                     <thead>
                         <tr>
-                            <th>ID</th><th>Ngành</th><th>Khối</th><th>STT</th><th>Mã</th><th>Tên</th>
+                            <th>STT</th><th>Ngành</th><th>Khối</th>
+                            <!-- <th>STT</th> -->
+                            <th>Mã</th><th>Tên</th>
                             <th>Tổng</th><th>LT</th><th>TH</th><th style="width:160px; text-align:center;">Thao tác</th>
                         </tr>
                     </thead>
@@ -157,7 +159,7 @@ try {
                                 <td><?= h($c['id']) ?></td>
                                 <td><?= h($c['major_name']) ?></td>
                                 <td><?= h($c['block_name'] ?: '(Chưa phân khối)') ?></td>
-                                <td><?= h($c['sort_order']) ?></td>
+                                <!-- <td><?= h($c['sort_order']) ?></td> -->
                                 <td><?= h($c['code']) ?></td>
                                 <td><?= h($c['name']) ?></td>
                                 <td><?= h($c['total_hours']) ?></td>
