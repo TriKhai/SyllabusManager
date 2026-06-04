@@ -96,9 +96,26 @@ $resources = $stmtRes->fetchAll(PDO::FETCH_ASSOC);
 $module['total_hours']      = $module['total_hours']      ?? (($module['theory_hours'] ?? 0) + ($module['practical_hours'] ?? 0));
 $module['credits_theory']   = $module['credits_theory']   ?? 0;
 $module['credits_practice'] = $module['credits_practice'] ?? 0;
-$module['prerequisite_modules'] = $module['prerequisite_modules'] ?? '';
-$module['parallel_modules']     = $module['parallel_modules']     ?? '';
-$module['previous_modules']     = $module['previous_modules']     ?? '';
+
+// Lấy danh sách Học phần tiên quyết từ bảng liên kết
+$stmt = $pdo->prepare("SELECT GROUP_CONCAT(c.code SEPARATOR ', ') FROM module_relationships mr JOIN courses c ON mr.related_course_id = c.id WHERE mr.module_id = ? AND mr.relation_type = 'Tiên quyết'");
+$stmt->execute([$id]);
+$module['prerequisite_modules_text'] = $stmt->fetchColumn() ?: ($module['prerequisite_modules'] ?? '');
+
+// Lấy danh sách Học phần song hành
+$stmt = $pdo->prepare("SELECT GROUP_CONCAT(c.code SEPARATOR ', ') FROM module_relationships mr JOIN courses c ON mr.related_course_id = c.id WHERE mr.module_id = ? AND mr.relation_type = 'Song hành'");
+$stmt->execute([$id]);
+$module['parallel_modules_text'] = $stmt->fetchColumn() ?: ($module['parallel_modules'] ?? '');
+
+// Lấy danh sách Học phần học trước
+$stmt = $pdo->prepare("SELECT GROUP_CONCAT(c.code SEPARATOR ', ') FROM module_relationships mr JOIN courses c ON mr.related_course_id = c.id WHERE mr.module_id = ? AND mr.relation_type = 'Học trước'");
+$stmt->execute([$id]);
+$module['previous_modules_text'] = $stmt->fetchColumn() ?: ($module['previous_modules'] ?? '');
+
+// Lấy danh sách Bộ môn
+$stmt = $pdo->prepare("SELECT GROUP_CONCAT(d.name SEPARATOR ', ') FROM module_departments md JOIN departments_list d ON md.department_id = d.id WHERE md.module_id = ?");
+$stmt->execute([$id]);
+$module['department_in_charge_text'] = $stmt->fetchColumn() ?: ($module['department_in_charge'] ?? '');
 ?>
 <!DOCTYPE html>
 <html lang="vi">
@@ -178,11 +195,11 @@ $module['previous_modules']     = $module['previous_modules']     ?? '';
         <div class="col-md-6"><span class="info-label">Học kỳ dự kiến:</span> <?= h($module['expected_semester']) ?></div>
         <div class="col-md-6"><span class="info-label">Năm học dự kiến:</span> <?= h($module['expected_year']) ?></div>
 
-        <div class="col-md-4"><span class="info-label">Học phần tiên quyết:</span> <?= h($module['prerequisite_modules'] ?? '') ?: 'Không' ?></div>
-        <div class="col-md-4"><span class="info-label">Học phần song hành:</span> <?= h($module['parallel_modules'] ?? '') ?: 'Không' ?></div>
-        <div class="col-md-4"><span class="info-label">Học phần học trước:</span> <?= h($module['previous_modules'] ?? '') ?: 'Không' ?></div>
+        <div class="col-md-4"><span class="info-label">Học phần tiên quyết:</span> <?= h($module['prerequisite_modules_text']) ?: 'Không' ?></div>
+        <div class="col-md-4"><span class="info-label">Học phần song hành:</span> <?= h($module['parallel_modules_text']) ?: 'Không' ?></div>
+        <div class="col-md-4"><span class="info-label">Học phần học trước:</span> <?= h($module['previous_modules_text']) ?: 'Không' ?></div>
 
-        <div class="col-md-4"><span class="info-label">Bộ môn tham gia giảng dạy:</span> <?= h($module['department_in_charge']) ?></div>
+        <div class="col-md-4"><span class="info-label">Bộ môn phụ trách:</span> <?= h($module['department_in_charge_text']) ?: 'Không' ?></div>
         <div class="col-md-4"><span class="info-label">Ban điều phối học phần:</span> <?= h($module['coordinating_board']) ?></div>
         <div class="col-md-4"><span class="info-label">Khoa phụ trách:</span> <?= h($module['faculty_in_charge']) ?></div>
     </div>

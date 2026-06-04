@@ -15,6 +15,13 @@ $booksCatalog = $pdo->query('SELECT * FROM books_catalog ORDER BY id')->fetchAll
 // 4. Lấy danh mục Khoa phụ trách
 $facultiesList = $pdo->query('SELECT name FROM faculties_list ORDER BY id')->fetchAll(PDO::FETCH_COLUMN);
 
+// 5. Lấy danh mục Bộ môn
+try {
+    $departmentsList = $pdo->query('SELECT id, name FROM departments_list ORDER BY id')->fetchAll(PDO::FETCH_ASSOC);
+} catch (Exception $e) {
+    $departmentsList = [];
+}
+
 // Xử lý nếu được truyền course_id từ trang quản lý sang để auto-fill
 $selectedCourse = null;
 $course_id = $_GET['course_id'] ?? null;
@@ -121,21 +128,36 @@ if($course_id){
 
             <div class="col-md-4">
                 <label class="form-label fw-bold">Học phần tiên quyết:</label>
-                <input type="text" name="prerequisite_modules" class="form-control" placeholder="Nhập các mã/tên HP, cách nhau bằng dấu phẩy (,)">
+                <select name="prerequisite_modules[]" class="form-select select2-course" multiple="multiple" data-placeholder="-- Chọn học phần --">
+                    <?php foreach($courses as $c): ?>
+                        <option value="<?= h($c['id']) ?>" data-code="<?= h($c['code']) ?>"><?= h($c['code']) ?> - <?= h($c['name']) ?></option>
+                    <?php endforeach; ?>
+                </select>
             </div>
             <div class="col-md-4">
                 <label class="form-label fw-bold">Học phần song hành:</label>
-                <input type="text" name="parallel_modules" class="form-control" placeholder="Nhập các mã/tên HP, cách nhau bằng dấu phẩy (,)">
+                <select name="parallel_modules[]" class="form-select select2-course" multiple="multiple" data-placeholder="-- Chọn học phần --">
+                    <?php foreach($courses as $c): ?>
+                        <option value="<?= h($c['id']) ?>" data-code="<?= h($c['code']) ?>"><?= h($c['code']) ?> - <?= h($c['name']) ?></option>
+                    <?php endforeach; ?>
+                </select>
             </div>
             <div class="col-md-4">
                 <label class="form-label fw-bold">Học phần học trước:</label>
-                <input type="text" name="previous_modules" class="form-control" placeholder="Nhập các mã/tên HP, cách nhau bằng dấu phẩy (,)">
+                <select name="previous_modules[]" class="form-select select2-course" multiple="multiple" data-placeholder="-- Chọn học phần --">
+                    <?php foreach($courses as $c): ?>
+                        <option value="<?= h($c['id']) ?>" data-code="<?= h($c['code']) ?>"><?= h($c['code']) ?> - <?= h($c['name']) ?></option>
+                    <?php endforeach; ?>
+                </select>
             </div>
 
             <div class="col-md-4">
                 <label class="form-label fw-bold">Bộ môn tham gia giảng dạy:</label>
-                <input type="text" name="department_in_charge" class="form-control" placeholder="Cách nhau bằng dấu phẩy nếu nhiều bộ môn">
-                <span class="form-helper">Ví dụ: Bộ môn Nội, Bộ môn Ngoại</span>
+                <select name="department_in_charge[]" class="form-select select2-multiple" multiple="multiple" data-placeholder="-- Chọn Bộ môn giảng dạy --">
+                    <?php foreach($departmentsList as $dep): ?>
+                        <option value="<?= h($dep['id']) ?>"><?= h($dep['name']) ?></option>
+                    <?php endforeach; ?>
+                </select>
             </div>
             <div class="col-md-4">
                 <label class="form-label fw-bold">Ban điều phối học phần:</label>
@@ -173,9 +195,10 @@ if($course_id){
         <table class="table table-bordered align-middle" id="cloTable">
             <thead>
                 <tr>
+                    <th style="width: 25%;">Lĩnh vực</th>
+                    <th style="width: 25%;">Mức độ Bloom Taxonomy</th>
                     <th style="width: 10%;">TT</th>
-                    <th style="width: 45%;">Chuẩn đầu ra học phần (Người dùng tự nhập mô tả chung)</th>
-                    <th style="width: 37%;">Phân loại Lĩnh vực & Mức độ Bloom tương ứng</th>
+                    <th style="width: 32%;">Chuẩn đầu ra học phần (Mô tả)</th>
                     <th style="width: 8%;">Hành động</th>
                 </tr>
             </thead>
@@ -451,105 +474,103 @@ function addCloRow() {
     cloIndex++;
     const tbody = document.querySelector('#cloTable tbody');
     const tr = document.createElement('tr');
+    const rowId = cloIndex;
+    const uid = 'clo_' + cloIndex + '_' + Date.now();
 
-    // Tạo sẵn danh sách option Bloom cho từng nhóm để gắn vào giao diện ngầm
-    let optKt = bloomDictionary["Kiến thức"].map(item => `<option value="${item}">${item}</option>`).join('');
-    let optKn = bloomDictionary["Kỹ năng"].map(item => `<option value="${item}">${item}</option>`).join('');
-    let optTd = bloomDictionary["Thái độ"].map(item => `<option value="${item}">${item}</option>`).join('');
+    const domainKeys = ['Kiến thức', 'Kỹ năng', 'Thái độ'];
+    let domainHtml = '';
+    let bloomHtml = '';
 
+    domainKeys.forEach((domain, idx) => {
+        const cbId = uid + '_d' + idx;
+        domainHtml += `
+            <div class="form-check mb-1">
+                <input class="form-check-input chk-domain" type="checkbox" value="${domain}" id="${cbId}"
+                       name="clo_domain_${rowId}[]"
+                       onchange="toggleBloomSelect(this, '${domain}', '${uid}', ${idx})">
+                <label class="form-check-label" for="${cbId}">${domain}</label>
+            </div>`;
+        bloomHtml += `
+            <div class="mb-1">
+                <select class="form-select form-select-sm sel-bloom-item" id="${uid}_b${idx}" disabled
+                        name="clo_bloom_${rowId}[]"
+                        style="opacity: 0.45; font-size: 13px;">
+                    <option value="">-- Chọn lĩnh vực trước --</option>
+                </select>
+            </div>`;
+    });
+
+    // QUAN TRỌNG: Ô nhập TT phải giữ lại class="form-control c-code text-center fw-bold"
     tr.innerHTML = `
+        <td>${domainHtml}</td>
+        <td>${bloomHtml}</td>
         <td>
-            <input type="text" class="form-control c-code text-center fw-bold bg-light" value="CLO${cloIndex}" readonly>
+            <input type="hidden" name="clo_row_ids[]" value="${rowId}">
+            <input type="text" class="form-control c-code text-center fw-bold" name="clo_code[]" value="" placeholder="CLO1 hoặc CLO1, CLO2">
         </td>
         <td>
-            <textarea class="form-control c-desc" rows="4" placeholder="Nhập mô tả tổng quát cho chuẩn đầu ra này (Mô tả chung cho tất cả các lĩnh vực tích hợp bên cạnh)..."></textarea>
-        </td>
-        <td>
-            <div class="d-flex align-items-center mb-2">
-                <div class="form-check" style="width: 120px; flex-shrink: 0;">
-                    <input class="form-check-input chk-domain" type="checkbox" value="Kiến thức" onchange="toggleBloomSelect(this)">
-                    <label class="form-check-label fw-semibold">Kiến thức</label>
-                </div>
-                <select class="form-select sel-bloom select2-simple" disabled style="display:none;">
-                    ${optKt}
-                </select>
-            </div>
-
-            <div class="d-flex align-items-center mb-2">
-                <div class="form-check" style="width: 120px; flex-shrink: 0;">
-                    <input class="form-check-input chk-domain" type="checkbox" value="Kỹ năng" onchange="toggleBloomSelect(this)">
-                    <label class="form-check-label fw-semibold">Kỹ năng</label>
-                </div>
-                <select class="form-select sel-bloom select2-simple" disabled style="display:none;">
-                    ${optKn}
-                </select>
-            </div>
-
-            <div class="d-flex align-items-center">
-                <div class="form-check" style="width: 120px; flex-shrink: 0;">
-                    <input class="form-check-input chk-domain" type="checkbox" value="Thái độ" onchange="toggleBloomSelect(this)">
-                    <label class="form-check-label fw-semibold">Thái độ</label>
-                </div>
-                <select class="form-select sel-bloom select2-simple" disabled style="display:none;">
-                    ${optTd}
-                </select>
-            </div>
+            <textarea class="form-control c-desc" name="clo_description[]" rows="3" placeholder="Nhập mô tả..."></textarea>
         </td>
         <td class="text-center">
             <button type="button" class="btn btn-sm btn-danger" onclick="removeCloRow(this)">Xóa</button>
         </td>
     `;
     tbody.appendChild(tr);
-
-    // Khởi tạo select2 dạng ẩn/hiện mượt mà
-    $(tr.querySelectorAll('.select2-simple')).select2({ width: '100%' });
-}
-
-function toggleBloomSelect(chk) {
-    // Tìm đến thẻ select nằm cùng hàng d-flex với checkbox
-    const parentDiv = chk.closest('.d-flex');
-    const selectEl = parentDiv.querySelector('.sel-bloom');
-
-    if (chk.checked) {
-        // Kích hoạt lại select
-        selectEl.disabled = false;
-        $(selectEl).show(); // Hiển thị thẻ select gốc
-
-        // Hiển thị khung Select2 bọc ngoài và ép cấu hình lại chiều rộng
-        $(selectEl).next('.select2-container').show();
-        $(selectEl).select2({ width: '100%' });
-    } else {
-        // Vô hiệu hóa và ẩn đi khi bỏ chọn
-        selectEl.disabled = true;
-        $(selectEl).hide();
-        $(selectEl).next('.select2-container').hide(); // Ẩn khung Select2 bọc ngoài
-    }
-}
-
-function updateBloomOptions(domainSelect) {
-    const tr = domainSelect.closest('tr');
-    const bloomSelect = tr.querySelector('.c-bloom');
-    const selectedDomain = domainSelect.value;
-
-    let optionsHtml = '';
-    if(bloomDictionary[selectedDomain]) {
-        bloomDictionary[selectedDomain].forEach(item => {
-            optionsHtml += `<option value="${item}">${item}</option>`;
-        });
-    }
-
-    bloomSelect.innerHTML = optionsHtml;
-    $(bloomSelect).trigger('change'); // Làm tươi cấu trúc Select2
+    
+    // Tự động gán số thứ tự gợi ý tạm thời (Người dùng vẫn click vào sửa tay được)
+    reindexCloTable();
 }
 
 function removeCloRow(btn) {
     btn.closest('tr').remove();
-    // Khởi tạo lại số thứ tự tăng tiến chính xác
-    cloIndex = 0;
-    document.querySelectorAll('#cloTable tbody tr').forEach(tr => {
-        cloIndex++;
-        tr.querySelector('.c-code').value = `CLO_${cloIndex}`;
+    reindexCloTable();
+}
+
+function reindexCloTable() {
+    let currentIdx = 0;
+    document.querySelectorAll('#cloTable tbody tr').forEach((tr) => {
+        currentIdx++;
+        const inputCode = tr.querySelector('.c-code');
+        if(inputCode && inputCode.value.trim() === "") {
+            inputCode.value = `CLO${currentIdx}`;
+        }
     });
+}
+
+function normalizeCloCodes(value, fallbackIndex) {
+    const raw = String(value || '').trim();
+    const source = raw === '' ? `CLO${fallbackIndex}` : raw;
+    const matches = source.toUpperCase().match(/CLO\s*\d+/g) || [];
+
+    if (matches.length > 0) {
+        return [...new Set(matches.map(code => code.replace(/\s+/g, '')))];
+    }
+
+    return source
+        .split(/[\s,;+/|]+/)
+        .map(code => code.trim().toUpperCase())
+        .filter(Boolean)
+        .filter((code, index, arr) => arr.indexOf(code) === index);
+}
+
+function toggleBloomSelect(checkbox, domain, uid, idx) {
+    const sel = document.getElementById(uid + '_b' + idx);
+    if (checkbox.checked) {
+        let opts = '<option value="">-- Chọn mức độ --</option>';
+        if (bloomDictionary[domain]) {
+            bloomDictionary[domain].forEach(item => {
+                opts += `<option value="${item}">${item}</option>`;
+            });
+        }
+        sel.innerHTML = opts;
+        sel.disabled = false;
+        sel.style.opacity = '1';
+    } else {
+        sel.innerHTML = '<option value="">-- Chọn lĩnh vực trước --</option>';
+        sel.value = '';
+        sel.disabled = true;
+        sel.style.opacity = '0.45';
+    }
 }
 
 function addAssessmentRow() {
@@ -787,70 +808,101 @@ function gatherJsonData() {
 
     // 1. In và kiểm tra các giá trị thuộc tính text/select cơ bản
     let basicData = {
-        course_id: document.getElementById('courseSelect').value,
-        name: document.getElementById('courseName').value,
-        code: document.getElementById('code').value,
-        module_type: document.getElementsByName('module_type')[0].value,
-        credits: document.getElementById('credits').value,
-        credits_theory: document.getElementById('credits_theory').value,
-        credits_practice: document.getElementById('credits_practice').value,
-        total_hours: document.getElementById('total_hours').value,
-        theory_hours: document.getElementById('theory_hours').value,
-        practical_hours: document.getElementById('practical_hours').value,
-        self_study_hours: document.getElementsByName('self_study_hours')[0].value,
-        target_programs: document.getElementsByName('target_programs')[0].value,
-        expected_semester: document.getElementsByName('expected_semester')[0].value,
-        expected_year: document.getElementsByName('expected_year')[0].value,
-        department_in_charge: document.getElementsByName('department_in_charge')[0].value,
-        coordinating_board: document.getElementsByName('coordinating_board')[0].value,
-        faculty_in_charge: document.getElementsByName('faculty_in_charge')[0].value,
-        description: document.getElementsByName('description')[0].value,
-        objectives: document.getElementsByName('objectives')[0].value,
-        grading_scale: document.getElementsByName('grading_scale')[0].value
+        course_id: document.getElementById('courseSelect')?.value || '',
+        name: document.getElementById('courseName')?.value || '',
+        code: document.getElementById('code')?.value || '',
+        module_type: document.getElementsByName('module_type')[0]?.value || '',
+        credits: document.getElementById('credits')?.value || 0,
+        credits_theory: document.getElementById('credits_theory')?.value || 0,
+        credits_practice: document.getElementById('credits_practice')?.value || 0,
+        total_hours: document.getElementById('total_hours')?.value || 0,
+        theory_hours: document.getElementById('theory_hours')?.value || 0,
+        practical_hours: document.getElementById('practical_hours')?.value || 0,
+        self_study_hours: document.getElementsByName('self_study_hours')[0]?.value || 0,
+        target_programs: document.getElementsByName('target_programs')[0]?.value || '',
+        expected_semester: document.getElementsByName('expected_semester')[0]?.value || '',
+        expected_year: document.getElementsByName('expected_year')[0]?.value || '',
+        department_in_charge: $(document.getElementsByName('department_in_charge[]')).val() || [],
+        coordinating_board: document.getElementsByName('coordinating_board')[0]?.value || '',
+        faculty_in_charge: document.getElementsByName('faculty_in_charge')[0]?.value || '',
+        description: document.getElementsByName('description')[0]?.value || '',
+        objectives: document.getElementsByName('objectives')[0]?.value || '',
+        grading_scale: document.getElementsByName('grading_scale')[0]?.value || ''
     };
     console.log("1. Dữ liệu thông tin học phần cơ bản:");
     console.table(basicData);
 
     // 2. Thu thập Chuẩn đầu ra (CLOs)
+    // =============================================================
+    // 2. THU THẬP CHUẨN ĐẦU RA (CLOs) - ĐÃ CHUẨN HÓA CHUỖI AN TOÀN
+    // =============================================================
     let clos = [];
-    document.querySelectorAll('#cloTable tbody tr').forEach(tr => {
+    document.querySelectorAll('#cloTable tbody tr').forEach((row, index) => {
+        const codeInput = row.querySelector('.c-code');
+        // Nếu người dùng không nhập gì, tự động gán số thứ tự tự động để tránh rỗng dữ liệu
+        let codeVal = codeInput ? codeInput.value.trim() : '';
+        if (codeVal === '') {
+            codeVal = 'CLO' + (index + 1);
+        }
+        const descTextarea = row.querySelector('.c-desc');
+        const descVal = descTextarea ? descTextarea.value.trim() : '';
+
+        // Lấy danh sách Lĩnh vực được tích chọn
         let domains = [];
-        let blooms = [];
-        tr.querySelectorAll('.chk-domain:checked').forEach(chk => {
+        row.querySelectorAll('.chk-domain:checked').forEach(chk => {
             domains.push(chk.value);
-            let parentDiv = chk.closest('.d-flex');
-            let selectEl = parentDiv.querySelector('.sel-bloom');
-            if(selectEl && !selectEl.disabled) {
-                blooms.push(selectEl.value);
+        });
+
+        // Lấy danh sách Mức độ Bloom tương ứng (Chỉ lấy các ô select đang mở hiển thị)
+        let blooms = [];
+        row.querySelectorAll('.sel-bloom-item').forEach(sel => {
+            if (!sel.disabled && sel.value && sel.value.trim() !== '') {
+                // Chỉ lấy phần text ngắn gọn, tránh các ký tự xuống dòng gây lỗi câu lệnh SQL
+                blooms.push(sel.value.replace(/[\r\n\t]/g, '').trim());
             }
         });
-        clos.push({
-            code: tr.querySelector('.c-code').value,
-            description: tr.querySelector('.c-desc').value,
-            domain: domains.join(', '),
-            bloom: blooms.join(', ')
-        });
+
+        // Điều kiện giữ lại hàng: Phải có thông tin mã ký hiệu hoặc mô tả chuẩn đầu ra
+        if (codeVal !== '' || descVal !== '') {
+            clos.push({
+                code: codeVal,
+                domain: domains.join(', '),
+                bloom: blooms.join(', '),
+                description: descVal
+            });
+        }
     });
+    
+    // Gán dữ liệu sạch sau khi xử lý chuỗi vào ô input ẩn để chuẩn bị truyền đi
     document.getElementById('clos_json').value = JSON.stringify(clos);
-    console.log("2. Mảng Chuẩn đầu ra (CLO) đã đóng gói JSON:", clos);
+    console.log("2. Mảng Chuẩn đầu ra (CLO) đã xử lý chuỗi an toàn:", clos);
 
     // 3. Thu thập Thành phần lượng giá (Assessments)
     let assessments = [];
     document.querySelectorAll('#assessmentTable tbody tr').forEach((tr) => {
-        // Thu thập các checkbox hoặc select mã CLO được chọn
-        let selectedClos = [];
-        tr.querySelectorAll('.clo-checkbox:checked, .clo-select option:selected').forEach(el => {
-            selectedClos.push(el.value);
-        });
+        const aClosInput = tr.querySelector('.a-clos');
+        const aClosVal = aClosInput ? aClosInput.value.trim() : '';
+        
+        const ploInput = tr.querySelector('.a-plo');
+        const ploVal = ploInput ? ploInput.value.trim() : '';
 
-        assessments.push({
-            clos: selectedClos.join(', '), // Chuỗi mã CLO cách nhau bằng dấu phẩy
-            clos: tr.querySelector('.a-clos')?.value || selectedClos.join(', '),
-            plo_pi: tr.querySelector('.a-plo')?.value || '',
-            form: ($(tr.querySelector('.a-form')).val() || []).join(', '),
-            tool: tr.querySelector('.a-tool')?.value || '',
-            weight: tr.querySelector('.a-weight')?.value || 0
-        });
+        const toolInput = tr.querySelector('.a-tool');
+        const toolVal = toolInput ? toolInput.value.trim() : '';
+
+        const weightInput = tr.querySelector('.a-weight');
+        const weightVal = weightInput ? weightInput.value : 0;
+
+        const formVal = ($(tr.querySelector('.a-form')).val() || []).join(', ');
+
+        if (aClosVal !== '' || formVal !== '') {
+            assessments.push({
+                clos: aClosVal,
+                plo_pi: ploVal,
+                form: formVal,
+                tool: toolVal,
+                weight: weightVal
+            });
+        }
     });
     document.getElementById('assessments_json').value = JSON.stringify(assessments);
     console.log("3. Mảng Thành phần đánh giá đã đóng gói JSON:", assessments);
@@ -858,14 +910,19 @@ function gatherJsonData() {
     // 4. Thu thập Hoạt động tự học
     let selfStudy = [];
     document.querySelectorAll('#selfStudyTable tbody tr').forEach(tr => {
-        selfStudy.push({
-            name: tr.querySelector('.ss-activity')?.value || '',
-            clos: tr.querySelector('.ss-clos').value,
-            hours: tr.querySelector('.ss-duration')?.value || 0,
-            method: tr.querySelector('.ss-method').value,
-            assess: tr.querySelector('.ss-assess').value,
-            evidence: tr.querySelector('.ss-evidence').value
-        });
+        const activityVal = tr.querySelector('.ss-activity')?.value.trim() || '';
+        const closVal = tr.querySelector('.ss-clos')?.value.trim() || '';
+        
+        if (activityVal !== '' || closVal !== '') {
+            selfStudy.push({
+                name: activityVal,
+                clos: closVal,
+                hours: tr.querySelector('.ss-duration')?.value || 0,
+                method: tr.querySelector('.ss-method')?.value.trim() || '',
+                assess: tr.querySelector('.ss-assess')?.value.trim() || '',
+                evidence: tr.querySelector('.ss-evidence')?.value.trim() || ''
+            });
+        }
     });
     document.getElementById('self_study_json').value = JSON.stringify(selfStudy);
     console.log("4. Mảng Hoạt động tự học đã đóng gói JSON:", selfStudy);
@@ -873,15 +930,18 @@ function gatherJsonData() {
     // 5. Thu thập Tiến độ Lý thuyết
     let theory = [];
     document.querySelectorAll('#theoryTopicTable tbody tr').forEach(tr => {
-        theory.push({
-            chapter: tr.querySelector('.t-chapter-label')?.value || '',
-            title: tr.querySelector('.t-title').value,
-            method: tr.querySelector('.t-method').value,
-            hours_class: tr.querySelector('.t-class')?.value || 0,
-            hours_self: tr.querySelector('.t-self')?.value || 0,
-            clos: tr.querySelector('.t-clos').value,
-            book: $(tr.querySelector('.t-textbook')).val() || ''
-        });
+        const titleVal = tr.querySelector('.t-title')?.value.trim() || '';
+        if (titleVal !== '') {
+            theory.push({
+                chapter: tr.querySelector('.t-chapter-label')?.value || '',
+                title: titleVal,
+                method: tr.querySelector('.t-method')?.value || '',
+                hours_class: tr.querySelector('.t-class')?.value || 0,
+                hours_self: tr.querySelector('.t-self')?.value || 0,
+                clos: tr.querySelector('.t-clos')?.value || '',
+                book: $(tr.querySelector('.t-textbook')).val() || ''
+            });
+        }
     });
     document.getElementById('theory_json').value = JSON.stringify(theory);
     console.log("5. Mảng Bài giảng lý thuyết đã đóng gói JSON:", theory);
@@ -889,14 +949,17 @@ function gatherJsonData() {
     // 6. Thu thập Tiến độ Thực hành
     let practical = [];
     document.querySelectorAll('#practicalTopicTable tbody tr').forEach(tr => {
-        practical.push({
-            topic: tr.querySelector('.p-topic').value,
-            content: tr.querySelector('.p-content').value,
-            method: tr.querySelector('.p-method').value,
-            hours_lab: tr.querySelector('.p-hours')?.value || 0,
-            clos: tr.querySelector('.p-clos').value,
-            facility: $(tr.querySelector('.p-facility')).val()
-        });
+        const topicVal = tr.querySelector('.p-topic')?.value.trim() || '';
+        if (topicVal !== '') {
+            practical.push({
+                topic: topicVal,
+                content: tr.querySelector('.p-content')?.value.trim() || '',
+                method: tr.querySelector('.p-method')?.value || '',
+                hours_lab: tr.querySelector('.p-hours')?.value || 0,
+                clos: tr.querySelector('.p-clos')?.value || '',
+                facility: $(tr.querySelector('.p-facility')).val() || ''
+            });
+        }
     });
     document.getElementById('practical_json').value = JSON.stringify(practical);
     console.log("6. Mảng Bài giảng thực hành đã đóng gói JSON:", practical);
@@ -904,16 +967,19 @@ function gatherJsonData() {
     // 7. Thu thập Tiến độ Tích hợp (Chung)
     let combined = [];
     document.querySelectorAll('#combinedTopicTable tbody tr').forEach((tr, index) => {
-        combined.push({
-            stt: index + 1,
-            content: tr.querySelector('.c-content')?.value || '',
-            method: tr.querySelector('.c-method')?.value || '',
-            hours_theory: tr.querySelector('.c-lt')?.value || 0,
-            hours_practice: tr.querySelector('.c-th')?.value || 0,
-            hours_self: tr.querySelector('.c-sh')?.value || 0,
-            clos: tr.querySelector('.c-clos')?.value || '',
-            facility: $(tr.querySelector('.c-facility')).val()
-        });
+        const contentVal = tr.querySelector('.c-content')?.value.trim() || '';
+        if (contentVal !== '') {
+            combined.push({
+                stt: index + 1,
+                content: contentVal,
+                method: tr.querySelector('.c-method')?.value || '',
+                hours_theory: tr.querySelector('.c-lt')?.value || 0,
+                hours_practice: tr.querySelector('.c-th')?.value || 0,
+                hours_self: tr.querySelector('.c-sh')?.value || 0,
+                clos: tr.querySelector('.c-clos')?.value || '',
+                facility: $(tr.querySelector('.c-facility')).val() || ''
+            });
+        }
     });
     document.getElementById('combined_json').value = JSON.stringify(combined);
     console.log("7. Mảng Chủ đề tích hợp đã đóng gói JSON:", combined);
@@ -921,13 +987,17 @@ function gatherJsonData() {
     // 8. Thu thập Tài liệu giảng dạy
     let resTeach = [];
     document.querySelectorAll('#resourceTeachTable tbody tr').forEach(tr => {
-        resTeach.push({
-            title: $(tr.querySelector('.book-title-select')).find('option:selected').text(),
-            editor: tr.querySelector('.book-editor').value,
-            publisher: tr.querySelector('.book-publisher').value,
-            year: tr.querySelector('.book-year').value,
-            isbn: tr.querySelector('.book-isbn').value
-        });
+        const titleText = $(tr.querySelector('.book-title-select')).find('option:selected').text();
+        const selectVal = $(tr.querySelector('.book-title-select')).val();
+        if (selectVal) {
+            resTeach.push({
+                title: titleText,
+                editor: tr.querySelector('.book-editor')?.value || '',
+                publisher: tr.querySelector('.book-publisher')?.value || '',
+                year: tr.querySelector('.book-year')?.value || '',
+                isbn: tr.querySelector('.book-isbn')?.value || ''
+            });
+        }
     });
     document.getElementById('res_teach_json').value = JSON.stringify(resTeach);
     console.log("8. Mảng Tài liệu giảng dạy đã đóng gói JSON:", resTeach);
@@ -935,23 +1005,24 @@ function gatherJsonData() {
     // 9. Thu thập Tài liệu tự học
     let resSelf = [];
     document.querySelectorAll('#resourceSelfTable tbody tr').forEach(tr => {
-        resSelf.push({
-            title: $(tr.querySelector('.book-title-select')).find('option:selected').text(),
-            editor: tr.querySelector('.book-editor').value,
-            publisher: tr.querySelector('.book-publisher').value,
-            year: tr.querySelector('.book-year').value,
-            isbn: tr.querySelector('.book-isbn').value
-        });
+        const titleText = $(tr.querySelector('.book-title-select')).find('option:selected').text();
+        const selectVal = $(tr.querySelector('.book-title-select')).val();
+        if (selectVal) {
+            resSelf.push({
+                title: titleText,
+                editor: tr.querySelector('.book-editor')?.value || '',
+                publisher: tr.querySelector('.book-publisher')?.value || '',
+                year: tr.querySelector('.book-year')?.value || '',
+                isbn: tr.querySelector('.book-isbn')?.value || ''
+            });
+        }
     });
     document.getElementById('res_self_json').value = JSON.stringify(resSelf);
     console.log("9. Mảng Tài liệu tự học đã đóng gói JSON:", resSelf);
 
     console.log("%c--- KIỂM TRA HOÀN TẤT. DỮ LIỆU HỢP LỆ VÀ ĐÃ ĐƯỢC CHUYỂN ĐI! ---", "color: #27ae60; font-weight: bold; font-size: 14px;");
-
-    // Trả về true để trình duyệt tiếp tục gửi form đến file save.php sau khi đã in log thành công
     return true;
 }
-
 // KHỞI TẠO CÁC CẤU HÌNH BAN ĐẦU KHI TRANG TẢI XONG
 $(document).ready(function() {
     $('#courseSelect').select2({
@@ -961,6 +1032,19 @@ $(document).ready(function() {
     });
 
     $('.select2-enable').select2({ width: '100%' });
+    $('.select2-multiple').select2({ width: '100%' });
+
+    function formatCourseSelection(state) {
+        if (!state.id) { return state.text; }
+        var code = $(state.element).data('code');
+        if (code) { return code; }
+        return state.text;
+    }
+
+    $('.select2-course').select2({
+        width: '100%',
+        templateSelection: formatCourseSelection
+    });
 
     // Nạp sẵn cấu trúc rỗng ban đầu cho form chuyên nghiệp
     addCloRow();

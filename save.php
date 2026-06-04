@@ -7,6 +7,24 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 }
 
 try {
+    $ensureColumn = function(string $table, string $column, string $definition) use ($pdo) {
+        $allowedTables = ['assessments', 'self_study_activities', 'theory_topics', 'practical_topics', 'combined_topics'];
+        if (!in_array($table, $allowedTables, true)) {
+            throw new Exception('Bang khong hop le khi bo sung cot.');
+        }
+
+        // SỬA TẠI ĐÂY: Sử dụng query + quote() thay cho prepare(?) vì MySQL không hỗ trợ placeholder trong câu lệnh SHOW
+        $quotedColumn = $pdo->quote($column);
+        $stmt = $pdo->query("SHOW COLUMNS FROM `{$table}` LIKE {$quotedColumn}");
+        if (!$stmt->fetch(PDO::FETCH_ASSOC)) {
+            $pdo->exec("ALTER TABLE `{$table}` ADD COLUMN `{$column}` {$definition}");
+        }
+    };
+
+    foreach (['assessments', 'self_study_activities', 'theory_topics', 'practical_topics', 'combined_topics'] as $table) {
+        $ensureColumn($table, 'clos_text', 'TEXT NULL');
+    }
+
     $pdo->beginTransaction();
 
     $getFirstId = function(string $sql, array $params = []) use ($pdo) {
@@ -42,9 +60,9 @@ try {
         $stmt = $pdo->prepare('INSERT INTO facilities (name) VALUES (?)');
         $stmt->execute([$name]);
         return (int)$pdo->lastInsertId();
-        
     };
-     // Hàm tìm ID nhanh từ bảng danh mục (thêm vào đầu file save.php)
+
+    // Hàm tìm ID nhanh từ bảng danh mục
     $lookupId = function($pdo, $table, $name) {
         if (empty($name)) return null;
         $stmt = $pdo->prepare("SELECT id FROM {$table} WHERE name = ? LIMIT 1");
@@ -83,10 +101,10 @@ try {
     $target_programs = $_POST['target_programs'] ?? '';
     $expected_semester = $_POST['expected_semester'] ?? '';
     $expected_year = $_POST['expected_year'] ?? '';
-    $prerequisite_modules = $_POST['prerequisite_modules'] ?? '';
-    $parallel_modules = $_POST['parallel_modules'] ?? '';
-    $previous_modules = $_POST['previous_modules'] ?? '';
-    $department_in_charge = $_POST['department_in_charge'] ?? '';
+    $prerequisite_modules = is_array($_POST['prerequisite_modules'] ?? '') ? implode(', ', $_POST['prerequisite_modules']) : ($_POST['prerequisite_modules'] ?? '');
+    $parallel_modules = is_array($_POST['parallel_modules'] ?? '') ? implode(', ', $_POST['parallel_modules']) : ($_POST['parallel_modules'] ?? '');
+    $previous_modules = is_array($_POST['previous_modules'] ?? '') ? implode(', ', $_POST['previous_modules']) : ($_POST['previous_modules'] ?? '');
+    $department_in_charge = is_array($_POST['department_in_charge'] ?? '') ? implode(', ', $_POST['department_in_charge']) : ($_POST['department_in_charge'] ?? '');
     $coordinating_board = $_POST['coordinating_board'] ?? '';
     $faculty_in_charge = $_POST['faculty_in_charge'] ?? '';
     $faculty_name = $faculty_in_charge;
@@ -100,9 +118,6 @@ try {
         throw new Exception("Mã học phần và Tên học phần tiếng Việt không được để trống.");
     }
 
-
-    // [XỬ LÝ ĐỒNG BỘ SANG BẢNG COURSES]
-    // Nếu chưa có course_id, kiểm tra xem mã học phần này đã có trong danh mục chưa
     if (empty($course_id)) {
         $stmtCheckCourse = $pdo->prepare("SELECT id FROM courses WHERE code = ?");
         $stmtCheckCourse->execute([$code]);
@@ -136,8 +151,6 @@ try {
         $stmtUpCourse->execute([$code, $name, $total_hours, $theory_hours, $practical_hours, $course_id]);
     }
 
-    
-   
     $stmtModule = $pdo->prepare('INSERT INTO modules (
         course_id, code, name, type,
         credits, credits_theory, credits_practice,
@@ -176,9 +189,32 @@ try {
 
     // Lấy ID vừa sinh ra để tiếp tục chạy cho các luồng xử lý JSON phía sau
     $module_id = $pdo->lastInsertId();
-    
 
-    $module_id = $pdo->lastInsertId();
+    // Lưu các học phần liên quan vào bảng module_relationships
+    $stmtRel = $pdo->prepare('INSERT INTO module_relationships (module_id, related_course_id, relation_type) VALUES (?, ?, ?)');
+    if (is_array($_POST['prerequisite_modules'] ?? null)) {
+        foreach ($_POST['prerequisite_modules'] as $rel_id) {
+            $stmtRel->execute([$module_id, $rel_id, 'Tiên quyết']);
+        }
+    }
+    if (is_array($_POST['parallel_modules'] ?? null)) {
+        foreach ($_POST['parallel_modules'] as $rel_id) {
+            $stmtRel->execute([$module_id, $rel_id, 'Song hành']);
+        }
+    }
+    if (is_array($_POST['previous_modules'] ?? null)) {
+        foreach ($_POST['previous_modules'] as $rel_id) {
+            $stmtRel->execute([$module_id, $rel_id, 'Học trước']);
+        }
+    }
+
+    // Lưu bộ môn vào bảng module_departments
+    if (is_array($_POST['department_in_charge'] ?? null)) {
+        $stmtDep = $pdo->prepare('INSERT INTO module_departments (module_id, department_id) VALUES (?, ?)');
+        foreach ($_POST['department_in_charge'] as $dep_id) {
+            $stmtDep->execute([$module_id, $dep_id]);
+        }
+    }
 
     // 3. Giải mã dữ liệu chuỗi JSON từ Frontend chuyển lên
     $clos_arr = json_decode($_POST['clos_json'] ?? '[]', true);
@@ -189,6 +225,28 @@ try {
     $combined_arr = json_decode($_POST['combined_json'] ?? '[]', true);
     $res_teach_arr = json_decode($_POST['res_teach_json'] ?? '[]', true);
     $res_self_arr = json_decode($_POST['res_self_json'] ?? '[]', true);
+
+    $normalizeCloCodes = function($value, string $fallback = '') {
+        $source = strtoupper(trim((string)$value));
+        if ($source === '') {
+            $source = strtoupper(trim($fallback));
+        }
+        if ($source === '') {
+            return [];
+        }
+
+        if (preg_match_all('/CLO\s*\d+/i', $source, $matches)) {
+            $codes = array_map(
+                fn($code) => preg_replace('/\s+/', '', strtoupper($code)),
+                $matches[0]
+            );
+        } else {
+            $codes = preg_split('/[\s,;\/+\|]+/u', $source);
+            $codes = array_map(fn($code) => strtoupper(trim($code)), $codes ?: []);
+        }
+
+        return array_values(array_unique(array_filter($codes)));
+    };
 
     $bookTitleFromPost = function($value) use ($pdo) {
         $value = trim((string)$value);
@@ -205,6 +263,23 @@ try {
 
         return $value;
     };
+
+    if (empty($clos_arr) && !empty($_POST['clo_row_ids'])) {
+        $clos_arr = [];
+        foreach ($_POST['clo_row_ids'] as $idx => $rowId) {
+            $domains = $_POST['clo_domain_' . $rowId] ?? [];
+            $blooms = $_POST['clo_bloom_' . $rowId] ?? [];
+            $domains = is_array($domains) ? $domains : [$domains];
+            $blooms = is_array($blooms) ? $blooms : [$blooms];
+
+            $clos_arr[] = [
+                'code' => $_POST['clo_code'][$idx] ?? '',
+                'domain' => implode(', ', array_filter(array_map('trim', $domains))),
+                'bloom' => implode(', ', array_filter(array_map(fn($b) => trim(str_replace(["\r", "\n", "\t"], '', $b)), $blooms))),
+                'description' => $_POST['clo_description'][$idx] ?? '',
+            ];
+        }
+    }
 
     if (empty($assessments_arr) && !empty($_POST['assessment_row_ids'])) {
         $assessments_arr = [];
@@ -302,6 +377,8 @@ try {
     }
 
     $clo_id_map = [];
+    $clo_exact_map = [];
+    $clo_token_map = [];
 
     // 4. LƯU CHUẨN ĐẦU RA (clos)
     if (is_array($clos_arr)) {
@@ -309,32 +386,57 @@ try {
             INSERT INTO clos (module_id, code, description, domain, bloom_level)
             VALUES (?, ?, ?, ?, ?)
         ');
-        foreach ($clos_arr as $c) {
-            $cloCode = strtoupper(trim($c['code'] ?? ''));
-            if ($cloCode === '') continue;
+        foreach ($clos_arr as $idx => $c) {
+            $displayCode = trim((string)($c['code'] ?? ''));
+            if ($displayCode === '') {
+                $displayCode = 'CLO' . ($idx + 1);
+            }
 
             $stmtClo->execute([
                 $module_id,
-                $cloCode,
+                $displayCode,
                 $c['description'] ?? '',
                 $c['domain'] ?? '',
                 $c['bloom'] ?? ''
             ]);
-            $clo_id_map[$cloCode] = $pdo->lastInsertId();
+
+            $cloId = (int)$pdo->lastInsertId();
+            $tokens = $normalizeCloCodes($displayCode, 'CLO' . ($idx + 1));
+            $exactKey = implode(', ', $tokens);
+
+            $clo_id_map[strtoupper($displayCode)] = $cloId;
+            if ($exactKey !== '') {
+                $clo_exact_map[$exactKey] = $cloId;
+            }
+            foreach ($tokens as $token) {
+                $clo_token_map[$token] ??= [];
+                $clo_token_map[$token][] = $cloId;
+            }
         }
     }
 
     // Hàm tiện ích phân tách chuỗi map liên kết CLOs n-n
-    $linkClosToEntity = function($pdo, $tableName, $foreignKeyName, $entityId, $cloCodesString) use ($clo_id_map) {
+    $linkClosToEntity = function($pdo, $tableName, $foreignKeyName, $entityId, $cloCodesString) use ($clo_id_map, $clo_exact_map, $clo_token_map, $normalizeCloCodes) {
         if (empty(trim($cloCodesString))) return;
-        $codes = preg_split('/[\s,;]+/', $cloCodesString);
+        $codes = $normalizeCloCodes($cloCodesString);
+        $exactKey = implode(', ', $codes);
+        $linkedIds = [];
         $stmtLink = $pdo->prepare("INSERT IGNORE INTO {$tableName} ({$foreignKeyName}, clo_id) VALUES (?, ?)");
-        foreach ($codes as $code) {
-            $code = strtoupper(trim($code));
-            if ($code === '') continue;
-            if (isset($clo_id_map[$code])) {
-                $stmtLink->execute([$entityId, $clo_id_map[$code]]);
+
+        if ($exactKey !== '' && isset($clo_exact_map[$exactKey])) {
+            $linkedIds[] = $clo_exact_map[$exactKey];
+        } elseif (isset($clo_id_map[strtoupper(trim($cloCodesString))])) {
+            $linkedIds[] = $clo_id_map[strtoupper(trim($cloCodesString))];
+        } else {
+            foreach ($codes as $code) {
+                foreach ($clo_token_map[$code] ?? [] as $cloId) {
+                    $linkedIds[] = $cloId;
+                }
             }
+        }
+
+        foreach (array_unique($linkedIds) as $cloId) {
+            $stmtLink->execute([$entityId, $cloId]);
         }
     };
 
@@ -350,13 +452,14 @@ try {
             }
 
             $stmtInsertAssess = $pdo->prepare("
-                INSERT INTO assessments (module_id, type, component, plo_pi, form, tool, weight)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
-            ");
+                INSERT INTO assessments (module_id, type, component, clos_text, plo_pi, form, tool, weight)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                ");
             $stmtInsertAssess->execute([
                 $module_id,
                 $assessmentType,
                 $a['component'] ?? '',
+                $a['clos'] ?? '',
                 $a['plo_pi'] ?? '',
                 $a['form'] ?? '',
                 $a['tool'] ?? '',
@@ -372,8 +475,8 @@ try {
     // 6. LƯU HOẠT ĐỘNG TỰ HỌC (self_study_activities)
     if (is_array($activity_arr)) {
         $stmtAct = $pdo->prepare('
-            INSERT INTO self_study_activities (module_id, activity_name, duration_hours, method, assessment_method, evidence)
-            VALUES (?, ?, ?, ?, ?, ?)
+            INSERT INTO self_study_activities (module_id, activity_name, clos_text, duration_hours, method, assessment_method, evidence)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
         ');
         foreach ($activity_arr as $act) {
             if (trim(($act['name'] ?? '') . ($act['clos'] ?? '') . ($act['method'] ?? '') . ($act['assess'] ?? '') . ($act['evidence'] ?? '')) === '' && empty($act['hours'])) {
@@ -384,6 +487,7 @@ try {
             $stmtAct->execute([
                 $module_id,
                 $act['name'] ?? '',
+                $act['clos'] ?? '',
                 $hours,
                 $act['method'] ?? '',
                 $act['assess'] ?? '',
@@ -397,8 +501,8 @@ try {
     // 7. LƯU TIẾN ĐỘ LÝ THUYẾT (theory_topics)
     if (is_array($theory_arr)) {
         $stmtTheory = $pdo->prepare('
-            INSERT INTO theory_topics (module_id, chapter, title, method, class_hours, self_study_hours, textbook_info)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO theory_topics (module_id, chapter, title, method, class_hours, self_study_hours, clos_text, textbook_info)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         ');
         foreach ($theory_arr as $t) {
             if (trim(($t['title'] ?? '') . ($t['clos'] ?? '') . ($t['book'] ?? '')) === '' && empty($t['hours_class']) && empty($t['hours_self'])) {
@@ -408,18 +512,18 @@ try {
             $c_hours = !empty($t['hours_class']) ? (int)$t['hours_class'] : 0;
             $s_hours = !empty($t['hours_self']) ? (int)$t['hours_self'] : 0;
             $stmtTheory->execute([
-                $module_id, $t['chapter'] ?? '', $t['title'] ?? '', $t['method'] ?? '', $c_hours, $s_hours, $t['book'] ?? ''
+                $module_id, $t['chapter'] ?? '', $t['title'] ?? '', $t['method'] ?? '', $c_hours, $s_hours, $t['clos'] ?? '', $t['book'] ?? ''
             ]);
             $theory_id = $pdo->lastInsertId();
             $linkClosToEntity($pdo, 'theory_topic_clos', 'theory_topic_id', $theory_id, $t['clos'] ?? '');
         }
     }
 
-    // 8. LƯU TIẾN ĐỘ THỰC HÀNH (practical_topics) - ĐÃ ĐƯỢC FIX LỖI 6 THAM SỐ
+    // 8. LƯU TIẾN ĐỘ THỰC HÀNH (practical_topics)
     if (is_array($practical_arr)) {
         $stmtPractical = $pdo->prepare('
-            INSERT INTO practical_topics (module_id, topic, content, method, lab_hours, facility_id)
-            VALUES (?, ?, ?, ?, ?, ?)
+            INSERT INTO practical_topics (module_id, topic, content, method, lab_hours, clos_text, facility_id)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
         ');
         foreach ($practical_arr as $p) {
             if (trim(($p['topic'] ?? '') . ($p['content'] ?? '') . ($p['method'] ?? '') . ($p['clos'] ?? '') . ($p['facility'] ?? '')) === '' && empty($p['hours_lab'])) {
@@ -434,6 +538,7 @@ try {
                 $p['content'] ?? '',
                 $p['method'] ?? '',
                 $l_hours,
+                $p['clos'] ?? '',
                 $facilityId
             ]);
             $practical_id = $pdo->lastInsertId();
@@ -444,8 +549,8 @@ try {
     // 9. LƯU TIẾN ĐỘ TÍCH HỢP CHUNG (combined_topics)
     if (is_array($combined_arr)) {
         $stmtCombined = $pdo->prepare('
-            INSERT INTO combined_topics (module_id, sort_order, content, method, theory_hours, practical_hours, self_study_hours, facility_id)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO combined_topics (module_id, sort_order, content, method, theory_hours, practical_hours, self_study_hours, clos_text, facility_id)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         ');
         foreach ($combined_arr as $idx => $cb) {
             if (
@@ -462,7 +567,7 @@ try {
             $sh_h = !empty($cb['hours_self']) ? (int)$cb['hours_self'] : 0;
             $facilityId = $getFacilityId($cb['facility'] ?? '');
             $stmtCombined->execute([
-                $module_id, $cb['stt'] ?? ($idx + 1), $cb['content'] ?? '', $cb['method'] ?? '', $lt_h, $th_h, $sh_h, $facilityId
+                $module_id, $cb['stt'] ?? ($idx + 1), $cb['content'] ?? '', $cb['method'] ?? '', $lt_h, $th_h, $sh_h, $cb['clos'] ?? '', $facilityId
             ]);
             $combined_id = $pdo->lastInsertId();
             $linkClosToEntity($pdo, 'combined_topic_clos', 'combined_topic_id', $combined_id, $cb['clos'] ?? '');
@@ -478,7 +583,7 @@ try {
     if (is_array($res_teach_arr)) {
         foreach ($res_teach_arr as $idx => $r) {
             $title = trim($r['title'] ?? '');
-            if ($title === '' || str_starts_with($title, '-- Chọn')) continue;
+            if ($title === '' || mb_strpos($title, '-- Chọn') === 0) continue;
             
             $stmtBook = $pdo->prepare("SELECT id FROM books_catalog WHERE title = ? LIMIT 1");
             $stmtBook->execute([$title]);
@@ -486,7 +591,7 @@ try {
 
             $stmtRes->execute([
                 $module_id, 'Tài liệu giảng dạy', ($idx + 1),
-                $title, $r['editor'] ?? '', $r['publisher'] ?? '', $r['year'] ?? '', $book_id // Lưu ID vào identifier
+                $title, $r['editor'] ?? '', $r['publisher'] ?? '', $r['year'] ?? '', $book_id
             ]);
         }
     }
@@ -494,7 +599,7 @@ try {
     if (is_array($res_self_arr)) {
         foreach ($res_self_arr as $idx => $r) {
             $title = trim($r['title'] ?? '');
-            if ($title === '' || str_starts_with($title, '-- Chọn')) continue;
+            if ($title === '' || mb_strpos($title, '-- Chọn') === 0) continue;
 
             // Phải tra cứu ID cho sách tự học
             $stmtBook = $pdo->prepare("SELECT id FROM books_catalog WHERE title = ? LIMIT 1");
@@ -512,7 +617,9 @@ try {
     header("Location: view.php?id=" . $module_id);
     exit;
 
-} catch (Exception $e) {
-    $pdo->rollBack();
+} catch (Throwable $e) {
+    if (isset($pdo) && $pdo->inTransaction()) {
+        $pdo->rollBack();
+    }
     die("Lỗi hệ thống trong quá trình lưu dữ liệu: " . $e->getMessage());
 }

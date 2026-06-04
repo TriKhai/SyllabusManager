@@ -22,6 +22,7 @@ DROP TABLE IF EXISTS `knowledge_blocks`;
 DROP TABLE IF EXISTS `majors`;
 DROP TABLE IF EXISTS `assessment_forms`;
 DROP TABLE IF EXISTS `faculties_list`;
+DROP TABLE IF EXISTS `departments_list`;
 
 CREATE TABLE `assessment_forms` (
   `id` INT AUTO_INCREMENT PRIMARY KEY,
@@ -96,11 +97,19 @@ CREATE TABLE `modules` (
 CREATE TABLE `module_relationships` (
   `id` INT AUTO_INCREMENT PRIMARY KEY,
   `module_id` INT NOT NULL,
-  `related_module_id` INT NOT NULL,
+  `related_course_id` INT NOT NULL,
   `relation_type` ENUM('Tiên quyết', 'Song hành', 'Học trước') NOT NULL,
   FOREIGN KEY (`module_id`) REFERENCES `modules`(`id`) ON DELETE CASCADE,
-  FOREIGN KEY (`related_module_id`) REFERENCES `modules`(`id`) ON DELETE CASCADE,
-  UNIQUE KEY `unique_relation` (`module_id`, `related_module_id`, `relation_type`)
+  FOREIGN KEY (`related_course_id`) REFERENCES `courses`(`id`) ON DELETE CASCADE,
+  UNIQUE KEY `unique_relation` (`module_id`, `related_course_id`, `relation_type`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE `module_departments` (
+  `module_id` INT NOT NULL,
+  `department_id` INT NOT NULL,
+  PRIMARY KEY (`module_id`, `department_id`),
+  FOREIGN KEY (`module_id`) REFERENCES `modules`(`id`) ON DELETE CASCADE,
+  FOREIGN KEY (`department_id`) REFERENCES `departments_list`(`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE `clos` (
@@ -246,6 +255,11 @@ CREATE TABLE `faculties_list` (
   `name` VARCHAR(255) NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+CREATE TABLE `departments_list` (
+  `id` INT AUTO_INCREMENT PRIMARY KEY,
+  `name` VARCHAR(255) NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 -- Master data
 INSERT INTO `majors` (`id`, `name`) VALUES
 (1, 'Y khoa'),
@@ -283,6 +297,18 @@ INSERT INTO `faculties_list` (`id`, `name`) VALUES
 (3, 'Khoa Điều dưỡng'),
 (4, 'Khoa Khoa học cơ bản');
 
+INSERT INTO `departments_list` (`id`, `name`) VALUES
+(1, 'Bộ môn Giải phẫu'),
+(2, 'Bộ môn Sinh lý'),
+(3, 'Bộ môn Bệnh học'),
+(4, 'Bộ môn Nội'),
+(5, 'Bộ môn Hóa dược'),
+(6, 'Bộ môn Dược lý'),
+(7, 'Bộ môn Quản lý Dược'),
+(8, 'Bộ môn Điều dưỡng cơ bản'),
+(9, 'Bộ môn Điều dưỡng nội'),
+(10, 'Trung tâm Công nghệ thông tin');
+
 INSERT INTO `courses` (`id`, `major_id`, `block_id`, `code`, `name`, `total_hours`, `theory_hours`, `practical_hours`, `sort_order`) VALUES
 (1, 1, 2, 'TEST001', 'Giải phẫu học đại cương', 45, 30, 15, 1),
 (2, 1, 2, 'TEST002', 'Sinh lý học đại cương', 45, 30, 15, 2),
@@ -307,7 +333,7 @@ INSERT INTO `modules` (`id`, `course_id`, `code`, `name`, `type`, `credits`, `cr
 (9, 9, 'TEST009', 'Chăm sóc người bệnh nội khoa', 'Bắt buộc', 4, 2, 2, 60, 30, 30, 90, 'Sinh viên Điều dưỡng năm 3', 'Học kỳ I', '2026-2027', '', '', '', 'Bộ môn Điều dưỡng nội', 'Ban Điều dưỡng', 'Khoa Điều dưỡng', 'Học phần hướng dẫn chăm sóc người bệnh mắc bệnh nội khoa thường gặp.', 'Xây dựng được kế hoạch chăm sóc người bệnh nội khoa.', 'Thang điểm 10'),
 (10, 10, 'TEST010', 'Tin học ứng dụng y học', 'Tự chọn', 3, 1, 2, 45, 20, 25, 60, 'Sinh viên khối sức khỏe', 'Học kỳ II', '2026-2027', '', '', '', 'Trung tâm Công nghệ thông tin', 'Ban liên khoa', 'Khoa Khoa học cơ bản', 'Học phần rèn luyện kỹ năng nhập liệu, xử lý dữ liệu và tra cứu y văn.', 'Sử dụng được công cụ số trong học tập và nghiên cứu y học.', 'Thang điểm 10');
 
-INSERT INTO `module_relationships` (`module_id`, `related_module_id`, `relation_type`) VALUES
+INSERT INTO `module_relationships` (`module_id`, `related_course_id`, `relation_type`) VALUES
 (2, 1, 'Học trước'), (3, 2, 'Học trước'), (4, 3, 'Song hành'), (6, 5, 'Học trước'), (9, 8, 'Học trước');
 
 INSERT INTO `clos` (`module_id`, `code`, `description`, `domain`, `bloom_level`) VALUES
