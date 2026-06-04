@@ -580,39 +580,53 @@ try {
         VALUES (?, ?, ?, ?, ?, ?, ?, ?)
     ');
 
+    // 10.1 Xử lý lưu Tài liệu giảng dạy
     if (is_array($res_teach_arr)) {
         foreach ($res_teach_arr as $idx => $r) {
             $title = trim($r['title'] ?? '');
+            // Nếu dòng trống hoặc là dòng chọn mặc định thì bỏ qua
             if ($title === '' || mb_strpos($title, '-- Chọn') === 0) continue;
             
-            $stmtBook = $pdo->prepare("SELECT id FROM books_catalog WHERE title = ? LIMIT 1");
-            $stmtBook->execute([$title]);
-            $book_id = $stmtBook->fetchColumn() ?: null;
+            // Lấy trực tiếp số định danh cá biệt được truyền từ giao diện lên
+            // (Hỗ trợ cả khóa 'isbn' hoặc 'identifier' tùy theo cách đóng gói của index.php)
+            $library_code = trim($r['isbn'] ?? $r['identifier'] ?? '');
 
             $stmtRes->execute([
-                $module_id, 'Tài liệu giảng dạy', ($idx + 1),
-                $title, $r['editor'] ?? '', $r['publisher'] ?? '', $r['year'] ?? '', $book_id
+                $module_id, 
+                'Tài liệu giảng dạy', 
+                ($idx + 1),
+                $title, 
+                $r['editor'] ?? '', 
+                $r['publisher'] ?? '', 
+                $r['year'] ?? '', 
+                $library_code // Lưu trực tiếp chuỗi mã thư viện vào cột identifier
             ]);
         }
     }
 
+    // 10.2 Xử lý lưu Tài liệu tự học
     if (is_array($res_self_arr)) {
         foreach ($res_self_arr as $idx => $r) {
             $title = trim($r['title'] ?? '');
             if ($title === '' || mb_strpos($title, '-- Chọn') === 0) continue;
 
-            // Phải tra cứu ID cho sách tự học
-            $stmtBook = $pdo->prepare("SELECT id FROM books_catalog WHERE title = ? LIMIT 1");
-            $stmtBook->execute([$title]);
-            $book_id = $stmtBook->fetchColumn() ?: null;
+            // Lấy trực tiếp số định danh cá biệt từ dữ liệu gửi lên
+            $library_code = trim($r['isbn'] ?? $r['identifier'] ?? '');
 
             $stmtRes->execute([
-                $module_id, 'Tài liệu tự học', ($idx + 1),
-                $title, $r['editor'] ?? '', $r['publisher'] ?? '', $r['year'] ?? '', $book_id
+                $module_id, 
+                'Tài liệu tự học', 
+                ($idx + 1),
+                $title, 
+                $r['editor'] ?? '', 
+                $r['publisher'] ?? '', 
+                $r['year'] ?? '', 
+                $library_code // Lưu trực tiếp chuỗi mã thư viện vào cột identifier
             ]);
         }
     }
 
+    // Hoàn tất và lưu mọi thay đổi vào Database
     $pdo->commit();
     header("Location: view.php?id=" . $module_id);
     exit;

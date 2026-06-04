@@ -235,7 +235,7 @@ CREATE TABLE `resources` (
   `editor` VARCHAR(255) NULL,
   `publisher` VARCHAR(255) NULL,
   `year` VARCHAR(50) NULL,
-  `identifier` INT NULL,
+  `identifier` VARCHAR(100) NULL,
   `book_id` INT NULL,
   FOREIGN KEY (`book_id`) REFERENCES `books_catalog`(`id`) ON DELETE SET NULL,
   FOREIGN KEY (`module_id`) REFERENCES `modules`(`id`) ON DELETE CASCADE
@@ -247,7 +247,7 @@ CREATE TABLE `books_catalog` (
   `editor` VARCHAR(255) NULL,
   `publisher` VARCHAR(255) NULL,
   `year` VARCHAR(50) NULL,
-  `identifier` INT NULL
+  `identifier` VARCHAR(100) NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE `faculties_list` (
