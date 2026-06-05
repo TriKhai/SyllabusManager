@@ -1,6 +1,6 @@
 <?php
 require 'db.php';
-ini_set('display_errors', 1);
+ini_set('display_errors', 1); 
 error_reporting(E_ALL);
 
 
@@ -145,6 +145,10 @@ $module['department_in_charge_text'] = $stmt->fetchColumn() ?: ($module['departm
 <div class="container syllabus-container">
     <p><a href="list.php">Xem danh sách học phần</a> | <a href="index.php">Thêm mới đề cương</a></p>
     <h2 class="text-center main-title">Chi tiết Đề cương chi tiết học phần</h2>
+
+    <a href="export_word.php?id=<?= $module['id'] ?>" class="btn btn-success">
+        Xuất file Word
+    </a>
 
     <div class="section-title">1. THÔNG TIN HỌC PHẦN</div>
     <div class="row g-3">

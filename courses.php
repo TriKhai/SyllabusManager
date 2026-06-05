@@ -321,5 +321,6 @@ try {
             });
         }
     </script>
+    <script src="./assistant.js"></script>
 </body>
 </html>
